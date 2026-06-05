@@ -17,18 +17,18 @@ Focusing work on MicroBlaze V bringup and trying to get basic test in. Formalizi
 
 ## Rough Timeline - From proposal
 
-**Week 1** — MicroBlaze integration: architecture + interface design
-**Week 2** — MicroBlaze integration: bring-up + kernel dispatch
-**Week 3** — Parameterization + benchmarking infrastructure
-**Week 4** — Metric determination + FSM state tracking
-**Week 5** — Memory coalescing design + initial implementation
-**Week 6** — Memory coalescing integration + verification
-**Week 7** — Pipelined ALU + scoreboard design
-**Week 8** — Pipelined ALU + scoreboard implementation + verification
-**Week 9** — Full benchmark suite
-**Week 10** — Stretch goal or buffer week
-**Week 11** — Timing closure + full system verification
-**Week 12** — Report + cleanup
+- **Week 1** — MicroBlaze integration: architecture + interface design
+- **Week 2** — MicroBlaze integration: bring-up + kernel dispatch
+- **Week 3** — Parameterization + benchmarking infrastructure
+- **Week 4** — Metric determination + FSM state tracking
+- **Week 5** — Memory coalescing design + initial implementation
+- **Week 6** — Memory coalescing integration + verification
+- **Week 7** — Pipelined ALU + scoreboard design
+- **Week 8** — Pipelined ALU + scoreboard implementation + verification
+- **Week 9** — Full benchmark suite
+- **Week 10** — Stretch goal or buffer week
+- **Week 11** — Timing closure + full system verification
+- **Week 12** — Report + cleanup
 
 
 ## Weekly Updates
