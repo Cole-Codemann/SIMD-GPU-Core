@@ -5,55 +5,31 @@ This is meant to track the rough timeline, weekly progress, side work that comes
 
 ---
 
-## Quick Status
+## Quick Status (6/5)
 Focusing work on MicroBlaze V bringup and trying to get basic test in. Formalizing test benches and getting everything more visible
 
 ### Core goals
--Integrate GPU with MicroBlaze V host
--Interface cohesively with the integrated homogenous system.
--Benchmark GPU performance
--Continue to implement hardware to improve GPU performance
+- Integrate GPU with MicroBlaze V host
+- Interface cohesively with the integrated homogenous system.
+- Benchmark GPU performance
+- Continue to implement hardware to improve GPU performance
 ---
 
 ## Rough Timeline - From proposal
 
-- [ ] **Week 1** — MicroBlaze integration: architecture + interface design
-- [ ] **Week 2** — MicroBlaze integration: bring-up + kernel dispatch
-- [ ] **Week 3** — Parameterization + benchmarking infrastructure
-- [ ] **Week 4** — Metric determination + FSM state tracking
-- [ ] **Week 5** — Memory coalescing design + initial implementation
-- [ ] **Week 6** — Memory coalescing integration + verification
-- [ ] **Week 7** — Pipelined ALU + scoreboard design
-- [ ] **Week 8** — Pipelined ALU + scoreboard implementation + verification
-- [ ] **Week 9** — Full benchmark suite
-- [ ] **Week 10** — Stretch goal or buffer week
-- [ ] **Week 11** — Timing closure + full system verification
-- [ ] **Week 12** — Report + cleanup
+**Week 1** — MicroBlaze integration: architecture + interface design
+**Week 2** — MicroBlaze integration: bring-up + kernel dispatch
+**Week 3** — Parameterization + benchmarking infrastructure
+**Week 4** — Metric determination + FSM state tracking
+**Week 5** — Memory coalescing design + initial implementation
+**Week 6** — Memory coalescing integration + verification
+**Week 7** — Pipelined ALU + scoreboard design
+**Week 8** — Pipelined ALU + scoreboard implementation + verification
+**Week 9** — Full benchmark suite
+**Week 10** — Stretch goal or buffer week
+**Week 11** — Timing closure + full system verification
+**Week 12** — Report + cleanup
 
----
-
-## Metrics I Want to Track
-
-| Metric | Status | Notes |
-|---|---|---|
-| Cycle count | TBD | |
-| Memory stall cycles | TBD | |
-| Warp utilization | TBD | |
-| Coalescing ratio | TBD | |
-| ALU stall cycles | TBD | |
-| Fmax | TBD | |
-| FPGA utilization | TBD | |
-
----
-
-## Known Risks / Watch Items
-
-- MicroBlaze integration may take longer than planned
-- Coalescing correctness could get tricky, especially with masks or multiple warp requests
-- Timing closure may force design tradeoffs late
-- Stretch goals are optional and should not get in the way of the core deliverables
-
----
 
 ## Weekly Updates
 
