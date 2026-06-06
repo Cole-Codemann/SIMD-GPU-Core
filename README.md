@@ -1,7 +1,2 @@
-# SIMD-GPU-Core
-16 Lane, 4 warp SIMD Architecture
-
-More details to come.
-
-*AI Disclaimer:*
-AI was solely used in the creation of some early testbenches and comment creation, under close supervision to ensure correctness. No AI was used to write any core code nor consulted with for design decisions; All code and the decisions behind them came from me.
+SIMT GPU on FPGA
+Work in progress. A from-scratch SIMT GPU written in SystemVerilog, currently running on a Nexys A7 and moving to a Genesys 2 (Kintex-7) for the next phase. The design has 4 warps × 16 lanes with a custom 16-bit ISA, a 4-stage pipeline, and a shared ALU arbitrated across warps. It runs real programs end-to-end — the current benchmark is an 8×8 matrix multiply split across the four warps — and synthesizes at 100 MHz on the current target. Future plans include MicroBlaze V homogenous system implementation and further improvements to GPU design, determined as bottlenecks arise. 
