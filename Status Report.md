@@ -102,41 +102,38 @@ Focusing work on MicroBlaze V bringup and trying to get basic test in. Formalizi
 ### Planned focus
 Original goals:
 - Parameterize top-level design
-  - `NUM_WARPS`
-  - `LANES_PER_WARP`
-  - `REG_COUNT`
-  - `ADDR_WIDTH`
-- Add synthesis-time config header
 - Add cycle counter accessible to MicroBlaze
 - Port matrix multiply kernel
 - Add vector dot product
 - Establish pre-coalescing baseline numbers
 
 New goals:
-- Get MicroBlaze running on very basic kernel, test control register interfacing. 
+- Complete CPU block diagram side
 - Create interfacing module to contain both the GPU and MicroBlaze.
 - Try to run basic program on GPU
 - As time permits, clean up testbenches and set up everything here on GitHub, to be maintained in future
 
 ### Main progress
-- [ ] 
+- Everything moved to GitHub, status tracker cleaned up
+- Built overall top module to contain both GPU and CPU
+- Built Imem BRAM blocks in top module, all being interfaced by one AXI
+- Received board and get license working
+- Installed and started working on Vitis
 
 ### Other work done
 - [ ] 
 
 ### Challenges ran into
-- [ ] 
-
-### Baseline results
-| Config | Kernel | Cycle Count | Memory Stall Cycles | Warp Utilization | Notes |
-|---|---|---:|---:|---:|---|
-| TBD | TBD | TBD | TBD | TBD | TBD |
+- License issues with new board
+- Vitis not working
 
 ### Notes
-- [ ] 
+-  Need to decide whether to have unique instructions for each Warp, same instructions for each warp. (current set up allows for relatively easy switching to other).
+-  If we do same instructions, can build a caching system. (unnecessary complication?)
 
 ### Next up
-- [ ] 
+- Run a testbenching kernel
+- Finish developing testbenches for each module 
 
 </details>
 
@@ -149,6 +146,12 @@ New goals:
 - Convert warp control to explicit FSM
 - Keep behavior unchanged
 - Re-run existing tests after refactor
+
+- New goals:
+- Get MicroBlaze interface tested and working.
+- Write simple program to GPU, one that is tested and true.
+- Finish cleaning up testbenches and GitHub.
+- Try to have baseline working version of SoC by end of week 5. 
 
 ### Main progress
 - [ ] 
