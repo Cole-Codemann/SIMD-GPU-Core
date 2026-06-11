@@ -26,9 +26,6 @@ module top (
     output logic led_gpu_done
 );
     //ToDO: Confirm interfaces for memory
-    //Split up the intruction BRAM into 4 so that each warp in the GPU can interface with their own
-
-
 
     // ─────────────────────────────────────────────────────────────────────────
     // Block design boundary signals
@@ -116,7 +113,7 @@ module top (
     // System clock - use the AXI BRAM ctrl's clock (same as MicroBlaze).
     // This keeps GPU and MB on the same clock domain (no CDC needed).
     // ─────────────────────────────────────────────────────────────────────────
-    wire sys_clk = bram_porta_0_clk;
+    logic sys_clk = bram_porta_0_clk;
 
     // ─────────────────────────────────────────────────────────────────────────
     // IMEM partition: 4 BRAMs, one per warp.
