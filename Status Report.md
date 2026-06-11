@@ -5,8 +5,8 @@ This is meant to track the rough timeline, weekly progress, side work that comes
 
 ---
 
-## Quick Status (6/5)
-Focusing work on MicroBlaze V bringup and trying to get basic test in. Formalizing test benches and getting everything more visible
+## Quick Status (6/11)
+Achieved MicroBlaze "Hello world". working on running simple full test of system. First a write/read of AXI, then basic GPU program.
 
 ### Core goals
 - Integrate GPU with MicroBlaze V host
