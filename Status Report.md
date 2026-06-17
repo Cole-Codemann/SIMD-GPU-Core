@@ -151,7 +151,8 @@ New goals:
 - Get MicroBlaze interface tested and working.
 - Write simple program to GPU, one that is tested and true.
 - Finish cleaning up testbenches and GitHub.
-- Try to have baseline working version of SoC by end of week 5. 
+- Try to have baseline working version of SoC by end of week 5.
+- Consider timing measurements
 
 ### Main progress
 - [ ] 
