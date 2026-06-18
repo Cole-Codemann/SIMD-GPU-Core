@@ -155,13 +155,16 @@ New goals:
 - Consider timing measurements
 
 ### Main progress
-- [ ] 
+- Major improvements to testbenches of RTL
+- Memory walk confirmed from CPU programming
+- Working on simple write, set, go, and read finish program
 
 ### Other work done
 - [ ] 
 
 ### Challenges ran into
-- [ ] 
+- Vitis is not playing as friendly as hoped
+- Memory interface is not clean, neither fully driven by me or Xilinx IPs, causes issues.
 
 ### Notes
 - [ ] 
