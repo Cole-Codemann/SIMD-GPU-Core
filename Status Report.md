@@ -5,8 +5,8 @@ This is meant to track the rough timeline, weekly progress, side work that comes
 
 ---
 
-## Quick Status (6/11)
-Achieved MicroBlaze "Hello world". working on running simple full test of system. First a write/read of AXI, then basic GPU program.
+## Quick Status (6/22)
+Simple CPU start/stop and program of GPU worked sucessfully, need to write more complicated one to "stress" the GPU more. Since simulations of these programs worked, it's expected that these will too. 
 
 ### Core goals
 - Integrate GPU with MicroBlaze V host
@@ -15,7 +15,7 @@ Achieved MicroBlaze "Hello world". working on running simple full test of system
 - Continue to implement hardware to improve GPU performance
 ---
 
-## Rough Timeline - From proposal
+## Rough Timeline - From proposal (Many changes have been made)
 
 - **Week 1** — MicroBlaze integration: architecture + interface design
 - **Week 2** — MicroBlaze integration: bring-up + kernel dispatch
@@ -159,18 +159,12 @@ New goals:
 - Memory walk confirmed from CPU programming
 - Working on simple write, set, go, and read finish program
 
-### Other work done
-- [ ] 
-
 ### Challenges ran into
 - Vitis is not playing as friendly as hoped
 - Memory interface is not clean, neither fully driven by me or Xilinx IPs, causes issues.
-
-### Notes
-- [ ] 
-
-### Next up
-- [ ] 
+- Difficulty building code between two different memory systems: One BRAM fully created from Xilinx IP, the other created by RTL being synthesized into BRAM
+- BRAM addressing worked out differently than expected
+- RTL driven BRAM being incorrectly synthesized. Needed to add useless code to trick Vivado into synthesizing correctly.
 
 </details>
 
@@ -180,30 +174,25 @@ New goals:
 <summary><strong>Week 5 — Memory coalescing: design + initial implementation</strong></summary>
 
 ### Planned focus
-- Design coalescing logic in memory controller
-- Define grouping granularity
-- Handle partial coalescing correctly
-- Make sure masks are handled correctly
-- Add instrumentation counters
-- Verify coalescing logic in isolation first
+- Integrate ILA and use to debug CPU/GPU interface issues
+- Fully verify more advanced program being driven by CPU
+- Flesh out timing system (AXI Timer available)
+- Determine memory method of storing "common" programs
 
 ### Main progress
-- [ ] 
+- ILA set up and used for debugging interface
+- CPU/GPU basic test completed and verified!!
+- BRAM interface difficulties fixed (address shifting for DMEM, timing issue for IMEM)
+- Simple lane ID write program created
 
 ### Other work done
-- [ ] 
+- 
 
 ### Challenges ran into
-- [ ] 
-
-### Coalescing notes
-- Granularity:
-- Mask behavior:
-- Requests before/after counter plan:
-- Open questions:
+- Memory difficulties
 
 ### Next up
-- [ ] 
+- Run fuller programs.
 
 </details>
 
@@ -213,14 +202,10 @@ New goals:
 <summary><strong>Week 6 — Memory coalescing: integration + verification</strong></summary>
 
 ### Planned focus
-- Integrate coalescing into memory path
-- Verify:
-  - fully coalesced requests
-  - fully uncoalesced requests
-  - partial coalescing
-  - masked requests
-  - multiple warp requests
-- Compare matrix multiply stall profile against baseline
+- Fully write more programs to run on GPU
+- Create baseline timing measurement
+- Test with and without memory coalescing instructions
+- Determine next target for optimization (Scoreboarding most likely)
 
 ### Main progress
 - [ ] 
