@@ -171,7 +171,7 @@ New goals:
 ---
 
 <details>
-<summary><strong>Week 5 — Memory coalescing: design + initial implementation</strong></summary>
+<summary><strong>Week 5 — Finalize CPU/GPU Integration + Develop Timing Systems</strong></summary>
 
 ### Planned focus
 - Integrate ILA and use to debug CPU/GPU interface issues
