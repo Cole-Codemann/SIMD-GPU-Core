@@ -184,15 +184,23 @@ New goals:
 - CPU/GPU basic test completed and verified!!
 - BRAM interface difficulties fixed (address shifting for DMEM, timing issue for IMEM)
 - Simple lane ID write program created
+- Ran matrix multiplication program
+- Set up clock cycle counter accessible via AXI
+  
 
 ### Other work done
-- 
+- Set up timer accessible via AXi... Not a huge fan
 
 ### Challenges ran into
 - Memory difficulties
 
 ### Next up
-- Run fuller programs.
+- Set up programs in BRAM accessible by CPU
+- Setup read into CPU of clock cycles recorded by GPU
+- Run fuller programs, begin recording how long they take.
+- Test with and without memory coalescing instruction
+- Set up scoreboarding and test with and without
+- Some BRAM is actually being synthesized as LUTRAM
 
 </details>
 
@@ -206,6 +214,7 @@ New goals:
 - Create baseline timing measurement
 - Test with and without memory coalescing instructions
 - Determine next target for optimization (Scoreboarding most likely)
+- Look into BRAM being LUTRAM
 
 ### Main progress
 - [ ] 
