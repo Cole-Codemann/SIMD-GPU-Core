@@ -214,7 +214,9 @@ New goals:
 - Create baseline timing measurement
 - Test with and without memory coalescing instructions
 - Determine next target for optimization (Scoreboarding most likely)
+- Look into Nick's proposed benchmark test
 - Look into BRAM being LUTRAM
+- Look into creating simple compiler
 
 ### Main progress
 - [ ] 
