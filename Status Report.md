@@ -36,7 +36,7 @@ Simple CPU start/stop and program of GPU worked sucessfully, need to write more 
 ---
 
 <details>
-<summary><strong>Week 1 — MicroBlaze integration: architecture + interface design</strong></summary>
+<summary><strong>Week 1 — MicroBlaze integration: Research and design</strong></summary>
 
 ### Planned focus
 - Define CPU/GPU interface
@@ -59,7 +59,7 @@ Simple CPU start/stop and program of GPU worked sucessfully, need to write more 
 ---
 
 <details>
-<summary><strong>Week 2 — MicroBlaze integration: bring-up + kernel dispatch</strong></summary>
+<summary><strong>Week 2 — MicroBlaze integration: Reconfigure GPU for integration</strong></summary>
 
 ### Planned focus
 - Wire GPU into block design
@@ -97,7 +97,7 @@ Simple CPU start/stop and program of GPU worked sucessfully, need to write more 
 ---
 
 <details>
-<summary><strong>Week 3 — Parameterization + benchmarking infrastructure</strong></summary>
+<summary><strong>Week 3 — Improve Visibility + Further Integration</strong></summary>
 
 ### Planned focus
 Original goals:
@@ -140,7 +140,7 @@ New goals:
 ---
 
 <details>
-<summary><strong>Week 4 — Warp FSM refactor</strong></summary>
+<summary><strong>Week 4 — Finalize Interface</strong></summary>
 
 ### Planned focus
 - Convert warp control to explicit FSM
@@ -171,7 +171,7 @@ New goals:
 ---
 
 <details>
-<summary><strong>Week 5 — Finalize CPU/GPU Integration + Develop Timing Systems</strong></summary>
+<summary><strong>Week 5 — Finalize and Test + Timing System Development</strong></summary>
 
 ### Planned focus
 - Integrate ILA and use to debug CPU/GPU interface issues
@@ -207,7 +207,7 @@ New goals:
 ---
 
 <details>
-<summary><strong>Week 6 — Memory coalescing: integration + verification</strong></summary>
+<summary><strong>Week 6 — Develop Significant Benchmarks</strong></summary>
 
 ### Planned focus
 - Fully write more programs to run on GPU
@@ -226,11 +226,6 @@ New goals:
 
 ### Challenges ran into
 - [ ] 
-
-### Results
-| Kernel | Before | After | Delta | Notes |
-|---|---:|---:|---:|---|
-| Matrix Multiply | TBD | TBD | TBD | TBD |
 
 ### Notes
 - [ ] 
