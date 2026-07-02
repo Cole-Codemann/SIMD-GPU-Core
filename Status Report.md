@@ -5,8 +5,8 @@ This is meant to track the rough timeline, weekly progress, side work that comes
 
 ---
 
-## Quick Status (6/22)
-Simple CPU start/stop and program of GPU worked sucessfully, need to write more complicated one to "stress" the GPU more. Since simulations of these programs worked, it's expected that these will too. 
+## Quick Status (7/2)
+Simple benchmark programs created, one for each algorithm and one total that runs all three in sequence.
 
 ### Core goals
 - Integrate GPU with MicroBlaze V host
@@ -215,23 +215,27 @@ New goals:
 - Test with and without memory coalescing instructions
 - Determine next target for optimization (Scoreboarding most likely)
 - Look into Nick's proposed benchmark test
-- Look into BRAM being LUTRAM
-- Look into creating simple compiler
 
 ### Main progress
-- [ ] 
-
-### Other work done
-- [ ] 
+- 3 programs currently able to be run directly on GPU
+- Timing measurement fully developed: One clock counter for individual program performance and one for overall
+- Each clock counter now able to be read by CPU
+- Kernel developed, intialized on start up and then called to be moved over.
+- Researched into IP usage for multiiplication/division
 
 ### Challenges ran into
-- [ ] 
+- Development of kernel involved more memory with more issues
 
 ### Notes
-- [ ] 
+- Need to collect timing reports and put them in document (although this will be able to be completed later through revision control)
 
 ### Next up
-- [ ] 
+- Collect data, run with and without memory coalescing. (involves rewriting of programs)
+- Collect data on bottlenecks (warp usage and time spent)
+- develop basic scoreboard to allow removal of inserted NOPs
+- Collect data on that improvement
+- Look into Nick proposed benchmark test
+- Work on IPs to increase speec
 
 </details>
 
