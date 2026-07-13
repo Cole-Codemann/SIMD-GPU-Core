@@ -252,19 +252,17 @@ New goals:
 - Account for ALU and memory latency together
 
 ### Main progress
-- [ ] 
-
+- Finished memory coalesce, and rewrote programs for it
+- Collected timing report of operations before and after memory coalesce
+- Developed multiple address spaces
+- Timing report of repeated operations before and after setting up ping-pong buffer
+- Determined need to build DMA engine to support maximized operational throughput
 ### Other work done
 - [ ] 
 
 ### Challenges ran into
 - [ ] 
 
-### Design notes
-- Pipeline stages:
-- Busy-bit policy:
-- Hazard handling:
-- Open questions:
 
 ### Next up
 - [ ] 
@@ -274,7 +272,7 @@ New goals:
 ---
 
 <details>
-<summary><strong>Week 8 — Pipelined ALU + scoreboard: implementation + verification</strong></summary>
+<summary><strong>Week 8 — Build full DMA, determine chokehold for multi-core</strong></summary>
 
 ### Planned focus
 - Implement pipelined ALU and scoreboard
