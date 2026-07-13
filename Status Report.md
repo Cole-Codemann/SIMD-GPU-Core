@@ -5,8 +5,8 @@ This is meant to track the rough timeline, weekly progress, side work that comes
 
 ---
 
-## Quick Status (7/2)
-Simple benchmark programs created, one for each algorithm and one total that runs all three in sequence.
+## Quick Status (7/13)
+Tested multiple chained matmuls with multiple address space, working on DMA to support throughput
 
 ### Core goals
 - Integrate GPU with MicroBlaze V host
