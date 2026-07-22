@@ -1,127 +1,33 @@
 # Smol GPU
-[![Educational Project](https://img.shields.io/badge/Type-Educational-blue)]()
-[![RISC-V](https://img.shields.io/badge/ISA-RISC--V-red)]()
-[![License](https://img.shields.io/github/license/grubre/smol-gpu)]()
-[![Stars](https://img.shields.io/github/stars/grubre/smol-gpu)]()
-
-An educational implementation of a parallel processor in system-verilog.
-
-The [Intro to GPU Architecture](#intro-to-gpu-architecture) chapter is a short write-up on the theoretical basics needed to understand the GPU implemented in this repository.
-
-If you want to set up the simulation on your machine, see [Simulation](#simulation) and [Project Structure](#project-structure).
-
-- [Introduction](#introduction)
-- [Intro to GPU Architecture](#intro-to-gpu-architecture)
-  - [Comparison with CPUs](#comparison-with-cpus)
-  - [SIMT Architecture](#simt-architecture)
-  - [Branching](#branching)
-- [ISA](#isa)
-  - [Vector Registers](#vector-registers)
-  - [Scalar Registers](#scalar-registers)
-  - [Instructions](#instructions)
-    - [Instruction List](#instruction-list)
-- [Assembly](#assembly)
-  - [Syntax](#syntax)
-  - [Example](#example)
-- [Microarchitecture](#microarchitecture)
-- [Project Structure](#project-structure)
-- [Simulation](#simulation)
-  - [Justfile](#justfile)
-  - [CMake](#cmake)
-  - [Running the Simulator](#running-the-simulator)
-- [Acknowledgments](#acknowledgments)
-- [Roadmap](#roadmap)
+An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Artix-V board.
 
 ## Introduction
 
-The purpose of this project was to create an open-source GPU which can serve as an introduction to modern GPU architecture.
-The project is heavily influenced [tiny-gpu](https://github.com/adam-maj/tiny-gpu).
-It builds upon tiny-gpu by incorporating a more advanced ISA (based on RISC-V RV32I), having multiple warps per each core and supporting branching, among other things.
+The purpose of this project was to further my own understanding of parallel processors and familiarize myself with new tools in FPGA design, such as block diagram to instantiate hard IPs like the MicroBlaze V, DMA Engines, DDR3 Memory, AXI controllers, etc. Additionally to practice the development of firmware to the host controller in charge of writing to the parallel processors data and instruction memory, and controlling when it starts and stops.
 
-For someone trying to learn how a GPU works, I still recommend checking out tiny-gpu first, and only then coming back to this project.
+For someone trying to learn how a GPU works, I recommend starting with tiny_gpu and smol_gpu, both great resources which inspired my to begin my design on my parallel processor, which grew through many iterations before becoming what it is now. I will omit from a basic introduction to GPU architecture, instead diving into my design in particular, but to the interested person I suggest the two resources mentioned before: tiny_gpu and smol_gpu.
 
-The rest of this chapter is an introduction to GPU architecture.
+### High Level - Parallel architecture at many levels
+There are many layers of parallelization at play in a GPU design, and the terminology between threads, warps, and cores lack universal meaning between companies/architectures, so I will explain how each of these are defined in my design and how each provides a level of parallel abstraction. 
 
-## Intro to GPU Architecture
-Nowadays, graphics cards are designed with the purpose of processing large amounts of data in a parallel manner.
-The massive parallelism seen in GPUs stems from their initial purpose - processing data for each pixel on the screen.
+If we were to focus on the "smallest" processing component, we would have a **lane** (or a thread, as some call it). A lane is primarily composed at 16 registers that are, for the most part, unique to it.
 
-In the early 2000s, programmers realised that this computational model can be used for more than just graphics programming.
-Thus, we got cards like NVIDIA Geforce series 3, GeForce 4 or ATI Radeon 8500, which were first to introduce programmable shaders.
+A lane, however, has no "autonomy"; 16 lanes are controlled by a single **warp**, with the warp being a traditional SIMT (Single Instruction, Multiple Threads). A warp takes in a single instruction, determines which lanes should be running it, then performs the operation on each of the active lanes at the same time. Lets say for example an instruction goes to the warp telling it multiply Register 4 by Register 5, and place the result in Register 6. The warp will apply this operation to each of its 16 lanes, regardless of their values in each of the three registers. This is the basis of SIMT processing. 
 
-Later on, that evolved into frameworks like CUDA, and so currently graphics cards are widely used for parallel computation in fields such as machine learning, cryptography or scientific computing.
+While each warp acts as a stand-alone processor in most control aspects, there are some resources they have to share, this is due to the fact that four warps coexist in a single core. Most importantly, these warps share a common ALU, meaning all additions, subtractions, multiplcations, etc. need to be scheduled since only one warp has access to it at a time (This is one of the larger differences between my current design and "realer" GPU's who have many different computational resources that are shared such as FPUs, MACs, etc... See section "Future Work" for how this is a goal to implement. In addition to the ALU, all the warps share a memory controller, which stands between the warps and the DMEM bank, scheduling and performing all reads and writes for the warps. The inclusion of the warps allow for maximized usage of the more bottlenecked and/or hardware intensive blocks while allowing each warp to step through their other instructions in parallel, increasing throughput substantially.
 
-### Comparison with CPUs
-Most modern CPUs are designed to be versatile in their function.
-They have to perform both sequential and parallel computations while also running the operating system and handling I/O operations.
+Finally, we take another step backwards; All together, the 4 warps, memory controller, ALU, and warp scheduled make up a single **core**. Each core is directed towards it's own data memory and instruction memory, which in this case is designed as a ping-pong buffer, which will be talked about later. The Artix-V board is capable of containing three unique cores, each with their own address spaces to work out of. The host, a MicroBlaze V processor, can directly control the reset signal of each core and monitor their "done" signals. Additionally, the MicroBlaze V works with a DMA Engine to transfer data memory to and from the DMEM space accessible by each core, allowing for high speed operational interface.
 
-In contrast to that, GPUs are designed with a single goal in mind - processing as much data in parallel as possible.
-The currently used paradigm that helps achieve that is called **SIMT (Single Instruction Multiple Thread)**, which is described in the next subchapter.
+### ISA
+Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture, I chose a relatively simple 16-bit word, 
 
-### SIMT architecture
-We have two goals when designing a GPU.
-The first is to be able to process as much data in parallel as possible.
-The second goal is to avoid breaking the fully parallel programming model.
-What that means, is that from the perspective of a programmer, we want to create an illusion of all the computation happening in parallel.
+TALK ABOUT ADDRESS SPACE HERE
 
-For example, when someone runs this sort of CUDA code:
-```cpp
-vector_add <<< 256 , 1024 >>> (d_out, d_a, d_b, N);
-```
-What they expect, is that there will be 256 blocks of 1024 threads running in parallel.
+design. All arithmetic instructions by default apply to every lane, unless a divergent instruction is passed applying a mask. 
 
-However, in practice, we are limited by the hardware - we can't actually have an arbitrary number of independent cores running the computation.
 
-In that case, what is the best way to create a chip that is both efficient in parallel computation and possible to implement using actual hardware?
-The answer is **Multi-threaded** architecture.
 
-Our GPU will have multiple **cores** (known as SMs in Nvidia's terminology), which are independent processors.
-Each of those cores has many **threads** which are grouped into **warps**.
-
-Threads within a single warp execute the same instruction but with different data and state.
-Each of them has it's own set of registers, which are called **vector registers**.
-
-As previously mentioned, all the threads within a warp execute the same instruction in lockstep.
-That means that every warp has a separate program counter which is shared between the threads.
-The warps also have their own set of registers, which are called **scalar registers**.
-
-So, why do we organize our GPU in such a way?
-We are taking advantage of the characteristics of modern processors - some operations take more time than others.
-As an example, memory access can be a few orders of magnitude slower than a simple add instruction and in most cases, fetching from memory is what a processor spends most of it's time doing.
-Reducing or masking the latency caused by memory is a good way to make our processor faster.
-
-The number of threads is much greater than the number of units such as ALU (Arithmetic Logic Unit) or LSU (Load Store Unit).
-At each point in time, only one of the warps has access to the resources of the core while others do some work in the background, like fetching an instruction or data from memory.
-
-With that architecture, we can relatively cheaply increase the number of threads within a core, because the number of warps is independent of the number of resources (ALUs, LSUs).
-
-One obvious issue is a situation in which threads within a single warp take divergent paths within the code (one chooses `if` and another `else`).
-
-### Branching
-There are a couple ways to solve this problem.
-The one I will describe here and that I implemented inside this GPU uses masking.
-
-As previously mentioned, each of the warps is given a set of registers.
-One of those registers is called **the execution mask**.
-Each of it's bits corresponds to one of the threads within that warp and denotes whether this particular thread should execute the next instruction (1 -> execute, 0 -> noop).
-
-In addition to that, we need an instruction which will set those bits based on certain conditions.
-For example, RISC-V has a `slti, rd, rs1, imm` instruction, which compares a `rs` register to an immediate value and outputs a single bit to the `rd` register - `1` if it's true and `0` otherwise.
-
-Now, let's modify this instruction in such a way, that each of the threads within the warp modifies a single bit in one of the warp's registers.
-Then we can run comparisons on each of the threads within a warp independently and mask the execution of next instructions based on the outcome.
-
-What a compiler developer might do, is generate code that executes both paths of the `if` statement.
-For the first path we use the execution mask produced by the compare function.
-For the second path we invert the mask and execute it as well.
-
-If we run into nested ifs, we can create a software stack which will keep the previous mask.
-
-An example is shown in the picture below:
-![if example](./readme/paths.png "If example")
-*Image taken from General-Purpose Graphics Processor Architecture (2018).*
-
-## ISA
+## Divergence
 The GPU itself, is based on a 32-bit word, 32-bit address space ISA that closely resembles RV32I.
 Some of the instructions that don't apply to a GPU design have been cut out (fence, csrrw, etc).
 Also, currently, there is also no support for unsigned arithmetic instructions.
