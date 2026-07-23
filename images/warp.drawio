@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram name="GPGPU-MicroBlaze Interface" id="2IuYqJR_rahVhjg6aVw3">
-    <mxGraphModel dx="1278" dy="1059" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1086" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -25,7 +25,7 @@
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-346" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCFFCC;strokeColor=#9673a6;strokeWidth=1;fontSize=10;" value="Branch Target&lt;br&gt;(from EXE)" vertex="1">
           <mxGeometry height="40" width="140" x="210" y="630" as="geometry" />
         </mxCell>
-        <mxCell id="hDXgGf_dpiN9BLTMFlIh-347" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=1;fontSize=10;" value="Bubble Insert on Branch Miss&lt;br&gt;(1-cycle penalty)" vertex="1">
+        <mxCell id="hDXgGf_dpiN9BLTMFlIh-347" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCFFCC;strokeColor=#B9E0A5;strokeWidth=1;fontSize=10;" value="Bubble Insert on Branch Miss&lt;br&gt;(1-cycle penalty)" vertex="1">
           <mxGeometry height="40" width="140" x="210" y="680" as="geometry" />
         </mxCell>
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-349" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" value="" vertex="1">
@@ -58,7 +58,7 @@
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-360" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=1;fontSize=10;" value="Shared ALU Req&lt;br&gt;(MUL/DIV)" vertex="1">
           <mxGeometry height="40" width="140" x="690" y="735" as="geometry" />
         </mxCell>
-        <mxCell id="hDXgGf_dpiN9BLTMFlIh-361" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" value="" vertex="1">
+        <mxCell id="hDXgGf_dpiN9BLTMFlIh-361" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d0cee2;strokeColor=#56517e;strokeWidth=2;" value="" vertex="1">
           <mxGeometry height="280" width="200" x="900" y="530" as="geometry" />
         </mxCell>
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-362" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontColor=#333333;" value="&lt;b&gt;EXE2&lt;/b&gt;" vertex="1">
@@ -110,7 +110,7 @@
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-378" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#d6b656;fontStyle=1;" value="forward (WB)" vertex="1">
           <mxGeometry height="20" width="70" x="472" y="849.5" as="geometry" />
         </mxCell>
-        <mxCell id="hDXgGf_dpiN9BLTMFlIh-379" edge="1" parent="1" source="hDXgGf_dpiN9BLTMFlIh-355" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;strokeWidth=2;endArrow=classic;dashed=1;exitX=0.5;exitY=0;entryX=0.5;entryY=0;" target="hDXgGf_dpiN9BLTMFlIh-343">
+        <mxCell id="hDXgGf_dpiN9BLTMFlIh-379" edge="1" parent="1" source="hDXgGf_dpiN9BLTMFlIh-355" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=classic;dashed=1;exitX=0.5;exitY=0;entryX=0.5;entryY=0;fillColor=#d5e8d4;" target="hDXgGf_dpiN9BLTMFlIh-343">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="760" y="510" />
@@ -118,7 +118,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="hDXgGf_dpiN9BLTMFlIh-380" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#9673a6;fontStyle=1;" value="branch taken" vertex="1">
+        <mxCell id="hDXgGf_dpiN9BLTMFlIh-380" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#97D077;fontStyle=1;" value="branch taken" vertex="1">
           <mxGeometry height="20" width="80" x="480" y="490" as="geometry" />
         </mxCell>
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-381" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;strokeWidth=2;" value="&lt;b&gt;IMEM&lt;/b&gt;" vertex="1">
@@ -249,7 +249,7 @@
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-409" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;" value="Fwd" vertex="1">
           <mxGeometry height="16" width="35" x="1230" y="951" as="geometry" />
         </mxCell>
-        <mxCell id="hDXgGf_dpiN9BLTMFlIh-412" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#F19C99;strokeWidth=1;fontSize=10;" value="NZP Flags Update&lt;br&gt;[15:0][2:0]" vertex="1">
+        <mxCell id="hDXgGf_dpiN9BLTMFlIh-412" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#F19C99;strokeWidth=1;fontSize=10;" value="NZP Flags Update" vertex="1">
           <mxGeometry height="40" width="140" x="930" y="580" as="geometry" />
         </mxCell>
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-414" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=1;fontSize=10;" value="Memory Access Req&lt;br&gt;(MUL/DIV)" vertex="1">
@@ -258,7 +258,7 @@
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-415" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;strokeWidth=1;fontSize=10;" value="Wait for Memory data/ ALU Access" vertex="1">
           <mxGeometry height="50" width="140" x="690" y="570" as="geometry" />
         </mxCell>
-        <mxCell id="hDXgGf_dpiN9BLTMFlIh-416" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1;fontSize=10;" value="Forward out data&lt;br&gt;(EXE2 &amp;gt; WB priority)" vertex="1">
+        <mxCell id="hDXgGf_dpiN9BLTMFlIh-416" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1;fontSize=10;" value="Forward out data&lt;br&gt;(Higher priority)" vertex="1">
           <mxGeometry height="40" width="140" x="930" y="635" as="geometry" />
         </mxCell>
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-417" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=1;fontSize=10;" value="Clear from Scoreboard&lt;br&gt;(Hazard Detect)" vertex="1">
@@ -291,6 +291,12 @@
         </mxCell>
         <mxCell id="hDXgGf_dpiN9BLTMFlIh-426" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#9673a6;fontStyle=1;" value="&lt;span style=&quot;color: rgb(255, 102, 102);&quot;&gt;Scoreboard Stall&lt;/span&gt;" vertex="1">
           <mxGeometry height="20" width="80" x="280" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="RRbGmgxLK4boxU8ZDdrE-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1;fontSize=10;" value="Forward out data&lt;br&gt;(Lower priority)" vertex="1">
+          <mxGeometry height="40" width="140" x="1170" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="RRbGmgxLK4boxU8ZDdrE-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCFFCC;strokeColor=#9673a6;strokeWidth=1;fontSize=10;" value="&lt;div&gt;Bubble Insert on Branch Miss&lt;/div&gt;&lt;div&gt;(1-cycle penalty)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="140" x="210" y="680" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
