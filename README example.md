@@ -19,20 +19,25 @@ While each warp acts as a stand-alone processor in most control aspects, there a
 Finally, we take another step backwards; All together, the 4 warps, memory controller, ALU, and warp scheduled make up a single **core**. Each core is directed towards it's own data memory and instruction memory, which in this case is designed as a ping-pong buffer, which will be talked about later. The Artix-V board is capable of containing three unique cores, each with their own address spaces to work out of. The host, a MicroBlaze V processor, can directly control the reset signal of each core and monitor their "done" signals. Additionally, the MicroBlaze V works with a DMA Engine to transfer data memory to and from the DMEM space accessible by each core, allowing for high speed operational interface.
 
 ### ISA
-Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture, I chose a relatively simple 16-bit word, 
+Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture/ Further SoC inegration, I chose a relatively simple 16-bit word, 16 bit instruction set, seen below:
 
-TALK ABOUT ADDRESS SPACE HERE
+| mnemonic | opcode  | funct3 | funct7    |
+|----------|---------|--------|-----------|
+| lui      | S110111 |   —    |     —     |
+| auipc    | S010111 |   —    |     —     |
 
-design. All arithmetic instructions by default apply to every lane, unless a divergent instruction is passed applying a mask. 
+TALK ABOUT ADDRESS SPACE for each core *************************
 
-
+All arithmetic operations are applied to every valid lane within the warp. However, with relatively simple masking applied through the software, operations done on any abitrary number of lanes is easy to accomplish.
 
 ## Divergence
-The GPU itself, is based on a 32-bit word, 32-bit address space ISA that closely resembles RV32I.
-Some of the instructions that don't apply to a GPU design have been cut out (fence, csrrw, etc).
-Also, currently, there is also no support for unsigned arithmetic instructions.
+Whereas a classic CPU has a straightforward idea of branching, and changing PC depending on conditional tests, a SIMT processor has more complication to it, due to the simple question "what if some lanes meet the condition to branch, but others don't?". There are many unique approaches to this problem, I decided to implement my own slightly modified design involving NZP flags, stacked masks, and conditional branching. 
 
-In order to differentiate between the warp and thread registers or instructions, the first ones will be called **scalar** and the second ones will be called **vector**.
+The CMP, BRnzp, and SYNC instruction carry all the weight of controlling the flow of the warp and divergence. The CMP instruction subtracts one register from another and sets the n - negative, z - zero, and p - postive flag depending on the result, calculated unique for each lane. The BRnzp instruction allows the programmer to determine which flags to look for when deciding when to branch, for example if nzp = '100' in the instruction, then only the lanes with their negative flag set will branch, applying a mask to all other lanes. The destination of the branch is equal to the current PC plus the signed 8-wide immediate passed into the instruction. When a mask is applied to a warp, that particular mask also gets pushed into a LIFO stack. The overall mask applied to the warp will be the "or'ed" result of the entire mask stack, allowing for nested branches. When a SYNC instruction is called, it simply pops the top mask off the stack. Below is an example of nested masks and SYNC call:
+
+![Diagram](./images/diagram.png)
+
+This means, that if the programmer wants to do an unconditional jump, they simply need to use the BRnzp instruction with nzp = '111', since thi
 
 ### Vector Registers
 Each of the threads within a warp has 32 of 32-bit registers.
@@ -98,45 +103,6 @@ The `S` bit in opcode denotes whether the instruction is vector or scalar with (
 | auipc    | S010111 |   —    |     —     |
 | **I-type arithmetic**  |          |     |
 | addi     | S010011 | 000    |     —     |
-| slti     | S010011 | 010    |     —     |
-| xori     | S010011 | 100    |     —     |
-| ori      | S010011 | 110    |     —     |
-| andi     | S010011 | 111    |     —     |
-| slli     | S010011 | 001    | 0000000X  |
-| srli     | S010011 | 101    | 0000000X  |
-| srai     | S010011 | 101    | 0100000X  |
-| **R-type**    |        |          |     |
-| add      | S110011 | 000    | 00000000  |
-| sub      | S110011 | 000    | 01000000  |
-| sll      | S110011 | 001    | 00000000  |
-| slt      | S110011 | 010    | 00000000  |
-| xor      | S110011 | 100    | 00000000  |
-| srl      | S110011 | 101    | 00000000  |
-| sra      | S110011 | 101    | 01000000  |
-| or       | S110011 | 110    | 00000000  |
-| and      | S110011 | 111    | 00000000  |
-| **Load**      |        |          |     |
-| lb       | S000011 | 000    |     —     |
-| lh       | S000011 | 001    |     —     |
-| lw       | S000011 | 010    |     —     |
-| **Store**     |        |          |     |
-| sb       | S100011 | 000    |     —     |
-| sh       | S100011 | 001    |     —     |
-| sw       | S100011 | 010    |     —     |
-| **J-type**    |        |          |     |
-| jal      | 1110111 |  —     |     —     |
-| **I-type jumps** |     |          |     |
-| jalr     | 1110011 | 000    |     —     |
-| **B-type**    |        |          |     |
-| beq      | 1110011 | 000    |     —     |
-| bne      | 1110011 | 001    |     —     |
-| blt      | 1110011 | 100    |     —     |
-| bge      | 1110011 | 101    |     —     |
-| **HALT**      |        |          |     |
-| halt     | 1111111 |   —    |     —     |
-| **SX type**   |        |          |     |
-| sx.slt   | 1111110 |   —    |     —     |
-| sx.slti  | 1111101 |   —    |     —     |
 
 ## Assembly
 Currently, the supported assembly is quite simple.
@@ -233,7 +199,7 @@ cmake --build . -j$(nproc)
 # You can also run the tests with the ctest command when in the build directory
 ```
 
-### Running the simulator
+### Timing problems addressed (make this unique, duh)
 The produced exectuable is located at `build/sim/simulator` (or you can just use the justfile).
 You can run it in the following way:
 ```bash
