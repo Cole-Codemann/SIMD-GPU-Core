@@ -43,72 +43,7 @@ The CMP, BRnzp, and SYNC instruction carry all the weight of controlling the flo
 
 ![Diagram](./images/Warp-Divergence.drawio.png)
 
-This means, that if the programmer wants to do an unconditional jump, they simply need to use the BRnzp instruction with nzp = '111', since thi
-
-### Vector Registers
-Each of the threads within a warp has 32 of 32-bit registers.
-As mentioned above, those are called vector registers and will be denoted with an `x` prefix (`x0`-`x31`).
-
-Just like RV32I, `x0` is a read-only register with value 0.
-However, for the purposes of GPU programming, registers `x1` - `x3` are also read-only and have a special purpose.
-Namely, they contain the thread id, block id and block size, in that order.
-
-The rest of the registers (`x4` - `x31`) are general purpose.
-
-|**Register**|**Function**   |
-|------------|---------------|
-|`x0`        |zero           |
-|`x1`        |thread id      |
-|`x2`        |block id       |
-|`x3`        |block size     |
-|`x4`-`x31`  |general purpose|
-
-### Scalar registers
-Similarly to their vector counter part, there are 32 scalar registers that hold 32-bit words.
-In order to differentiate between them, the scalar registers are prefixed with `s` (`s0`-`s31`).
-The zero-th register is also tied to 0.
-
-Register `s1` is called the execution mask and has a special purpose but is not read-only.
-As mentioned in the intro, each of the bits in that register denotes whether the corresponding thread should execute the current instruction.
-
-This is also the reason why the GPU can be configured to have at most 32 threads per warp (size of the register).
-
-
-|**Register**|**Function**   |
-|------------|---------------|
-|`s0`        |zero           |
-|`s1`        |execution mask |
-|`s2`-`x31`  |general purpose|
-
-### Instructions
-The instructions are split into three types:
-- vector instructions
-- scalar instructions
-- vector-scalar instructions
-
-Vector instructions are executed by each thread on the vector registers, scalar instructions by each warp on the scalar registers and the vector-scalar instructions are a mix (more on that later).
-
-Which instruction is being executed is determined by three values:
-- opcode,
-- funct3,
-- funct7
-
-All of the vector instructions have their scalar equivalent but not vice versa.
-Specifically, the jump and branch instructions are scalar-only, because only the warps have a program counter (`jal`, `jalr`, `beq`, `bne`, `blt`, `bge`).
-
-The most significant bit of the opcode is always equal to 0 for vector instruction and to 1 for other types.
-That means, that changing the instruction type from vector to scalar is equivalent to this operation `(opcode) & (1 << 6)`.
-
-#### Instruction list
-Below is the instruction list.
-The `S` bit in opcode denotes whether the instruction is vector or scalar with (1 - scalar, 0 - vector).
-| mnemonic | opcode  | funct3 | funct7    |
-|----------|---------|--------|-----------|
-| **U-type**    |        |          |     |
-| lui      | S110111 |   —    |     —     |
-| auipc    | S010111 |   —    |     —     |
-| **I-type arithmetic**  |          |     |
-| addi     | S010011 | 000    |     —     |
+Some nuances for this design include the choice to not add the mask stack when an unconditional branch has all lanes taking the branch, typically done by allowing a branch of the n, z, or p flags are set: nzp = '111'. This allows for programmers to jump around their instruction count freely using unconditional branching (essentially, a jump instruction) without fear of overflowing the mask stack. Additionally, a programmer is able to apply a mask without jumping to a new PC at all, by setting the lower 8 bits of the BRnzp instruction to all 0's, the processor never adds to it's PC and steps forward normally, with the new mask applied. 
 
 ## Assembly
 Currently, the supported assembly is quite simple.
