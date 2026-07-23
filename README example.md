@@ -1,4 +1,4 @@
-# Smol GPU
+# 3 Core Microblaze-V Controller 
 An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Artix-V board.
 
 ## Introduction
@@ -45,7 +45,7 @@ The CMP, BRnzp, and SYNC instruction carry all the weight of controlling the flo
 
 Some nuances for this design include the choice to not add the mask stack when an unconditional branch has all lanes taking the branch, typically done by allowing a branch of the n, z, or p flags are set: nzp = '111'. This allows for programmers to jump around their instruction count freely using unconditional branching (essentially, a jump instruction) without fear of overflowing the mask stack. Additionally, a programmer is able to apply a mask without jumping to a new PC at all, by setting the lower 8 bits of the BRnzp instruction to all 0's, the processor never adds to it's PC and steps forward normally, with the new mask applied. 
 
-## Assembly
+## Assembly (here lets talk about the main.c code that drives the program)
 Currently, the supported assembly is quite simple.
 It takes a single input file and line by line compiles it into machine code.
 
@@ -92,9 +92,6 @@ sw x5, 0(x1)                # mem[thread_id] := x5 (only non-masked threads exec
 halt                        # Stop the execution
 ```
 
-## Microarchitecture
-todo
-
 ## Project structure
 The project is split into several subdirectories:
 - `external` - contains external dependencies (e.g. doctest)
@@ -102,7 +99,7 @@ The project is split into several subdirectories:
 - `sim` - contains the verilator based simulation environment and the assembler
 - `test` - contains test files for the GPU, the assembler and the simulator
 
-## Simulation
+## Simulation (talk about the test benches for single core) (maybe we have to flesh these out a bit more)
 The prerequistes for running the simulation are:
 - [verilator](https://www.veripool.org/wiki/verilator)
 - [cmake](https://cmake.org/)
@@ -113,7 +110,7 @@ In this project, verilator translates the system-verilog code into C++ which the
 Once the prerequistes are installed, you can build and run the simulator executable or the tests.
 There are currently two ways to do this:
 
-### Justfile
+### Justfile (maybe we run this version instead of make)
 First, and the more convenient way, is to use the provided [justfile](https://github.com/casey/just).
 `Just` is a modern alternative to `make`, which makes it slightly more sane to write build scripts with.
 In the case of this project, the justfile is a very thin wrapper around cmake.
@@ -162,12 +159,14 @@ Much of the knowledge I've gathered in order to create this project comes from t
 which I highly recommend for anyone interested in the topic.
 
 ## Roadmap
-There is still a lot of work to be done around the GPU itself, the simulator and the tooling around it.
+There is still a lot of work to be done around the GPU itself. As a whole I want to make the GPU itself more "realistic" and faster, which is a drive for many of my future goals
 
-- [ ] Add more tests and verify everything works as expected
-- [ ] Benchmark (add memory latency benchmarks, etc)
-- [ ] Parallelize the GPU pipeline
-- [ ] Simulate on GEM5 with Ramulator
-- [ ] Run it on an FPGA board
+- [ ] Add Floating Point Unit
+- [ ] Pipeline arithmetic processes
+- [ ] Create L1 and L2 "scratchpad" for inter and intra warp communication
+- [ ] Reach 200 MHz clock speed
+- [ ] Implement Caching
+- [ ] Move to 32 bit words and instructions.
+- [ ] Build as assembler to allow easier programming.
 
 Another step would be to implement a CUDA-like compiler as writing the assembly gets very tedious, especially with manually masking out the threads for branching.
