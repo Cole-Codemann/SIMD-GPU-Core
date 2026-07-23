@@ -99,16 +99,10 @@ The project is split into several subdirectories:
 - `sim` - contains the verilator based simulation environment and the assembler
 - `test` - contains test files for the GPU, the assembler and the simulator
 
-## Simulation (talk about the test benches for single core) (maybe we have to flesh these out a bit more)
-The prerequistes for running the simulation are:
-- [verilator](https://www.veripool.org/wiki/verilator)
-- [cmake](https://cmake.org/)
-- A C++ compiler that supports C++23 (e.g. g++-14)
+## Simulation
+Because this project was designed and built with a board in mind (the Artix-V), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. 
 
-Verilator is a tool that can simulate or compile system-verilog code.
-In this project, verilator translates the system-verilog code into C++ which then gets included as a library in the simulator.
-Once the prerequistes are installed, you can build and run the simulator executable or the tests.
-There are currently two ways to do this:
+For those who do have access to an Artix-V board I highly encourage running the full programs onto the MicroBlaze. For those who do not, I hope the simulation of a single core running a matrix multiplcation is interesting enough to saite you. 
 
 ### Justfile (maybe we run this version instead of make)
 First, and the more convenient way, is to use the provided [justfile](https://github.com/casey/just).
@@ -148,6 +142,19 @@ The program will fail if the assembly code contained in the input file is ill-fo
 
 In case it manages to assemble the code, it will then run the simulation and print the first 100 words of the memory to the console.
 This is a temporary solution and will be replaced by a more sophisticated output mechanism in the future.
+
+### Roofline analysis, Metrics taken, etc.
+The produced exectuable is located at `build/sim/simulator` (or you can just use the justfile).
+You can run it in the following way:
+```bash
+./build/sim/simulator <input_file.as> <data_file.bin>
+```
+The simulator will first assemble the input file and load the binary data file into the GPU data memory.
+The program will fail if the assembly code contained in the input file is ill-formed.
+
+In case it manages to assemble the code, it will then run the simulation and print the first 100 words of the memory to the console.
+This is a temporary solution and will be replaced by a more sophisticated output mechanism in the future.
+
 
 ## Acknowledgments
 Special thanks go to Adam Majmudar, the creator of [tiny-gpu](https://github.com/adam-maj/tiny-gpu).
