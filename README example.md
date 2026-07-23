@@ -35,7 +35,7 @@ Whereas a classic CPU has a straightforward idea of branching, and changing PC d
 
 The CMP, BRnzp, and SYNC instruction carry all the weight of controlling the flow of the warp and divergence. The CMP instruction subtracts one register from another and sets the n - negative, z - zero, and p - postive flag depending on the result, calculated unique for each lane. The BRnzp instruction allows the programmer to determine which flags to look for when deciding when to branch, for example if nzp = '100' in the instruction, then only the lanes with their negative flag set will branch, applying a mask to all other lanes. The destination of the branch is equal to the current PC plus the signed 8-wide immediate passed into the instruction. When a mask is applied to a warp, that particular mask also gets pushed into a LIFO stack. The overall mask applied to the warp will be the "or'ed" result of the entire mask stack, allowing for nested branches. When a SYNC instruction is called, it simply pops the top mask off the stack. Below is an example of nested masks and SYNC call:
 
-![Diagram](./images/Warp Divergence.drawio.png)
+![Diagram](./images/Warp-Divergence.drawio.png)
 
 This means, that if the programmer wants to do an unconditional jump, they simply need to use the BRnzp instruction with nzp = '111', since thi
 
