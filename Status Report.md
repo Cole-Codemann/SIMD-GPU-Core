@@ -242,7 +242,7 @@ New goals:
 ---
 
 <details>
-<summary><strong>Week 7 — Pipelined ALU + scoreboard: design</strong></summary>
+<summary><strong>Week 7
 
 ### Planned focus
 - Pipeline multiplier into two stages
@@ -272,41 +272,17 @@ New goals:
 ---
 
 <details>
-<summary><strong>Week 8 — Build full DMA, determine chokehold for multi-core</strong></summary>
+<summary><strong>Week 8
 
 ### Planned focus
-- Implement pipelined ALU and scoreboard
-- Run directed hazard tests
-- Measure Fmax before/after pipelining
-- Check whether schedule still supports stretch goal
+- Collected roofline data, started working on diagrams
+- Set up third core
+- Created RTL to measure utilization % of memory controller and ALU
 
 ### Main progress
-- [ ] 
-
-### Other work done
-- [ ] 
-
-### Challenges ran into
-- [ ] 
-
-### Timing results
-| Build | Fmax | Notes |
-|---|---:|---|
-| Before pipelining | TBD | |
-| After pipelining | TBD | |
-
-### Verification checklist
-- [ ] RAW hazard across pipelined multiply
-- [ ] WAW hazard
-- [ ] Hazard during memory wait
-- [ ] Correct behavior under masking
-
-### Next up
-- [ ] 
-
-</details>
-
----
+- Collected roofline data, started working on diagrams
+- Set up third core
+- Created RTL to measure utilization % of memory controller and ALU
 
 <details>
 <summary><strong>Week 9 — Full benchmark suite</strong></summary>
