@@ -5,8 +5,8 @@ This is meant to track the rough timeline, weekly progress, side work that comes
 
 ---
 
-## Quick Status (7/13)
-Tested multiple chained matmuls with multiple address space, working on DMA to support throughput
+## Quick Status (7/23)
+Three core system set up and working. Preliminary data collected for roofline analysis.
 
 ### Core goals
 - Integrate GPU with MicroBlaze V host
