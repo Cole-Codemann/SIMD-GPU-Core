@@ -1,4 +1,4 @@
-# 3 Core Microblaze-V Controller 
+# Tri-Core GPGPU SoC With Microblaze-V Host 
 An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Artix-V board.
 
 ## Introduction
@@ -117,5 +117,3 @@ There is still a lot of work to be done around the GPU itself. As a whole I want
 - [ ] Move to 32 bit words and instructions.
 - [ ] Build as assembler to allow easier programming.
 - [ ] Consolodate concurrent and non-concurrent memory instructions
-
-Another step would be to implement a CUDA-like compiler as writing the assembly gets very tedious, especially with manually masking out the threads for branching.
