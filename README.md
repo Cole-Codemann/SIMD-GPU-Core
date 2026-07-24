@@ -1,38 +1,81 @@
 # Tri-Core GPGPU SoC With Microblaze-V Host 
-An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Artix-V board.
+An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Artix-7 board.
 
 ## Introduction
-
 The purpose of this project was to further my own understanding of parallel processors and familiarize myself with new tools in FPGA design, such as block diagram to instantiate hard IPs like the MicroBlaze V, DMA Engines, DDR3 Memory, AXI controllers, etc. Additionally to practice the development of firmware to the host controller in charge of writing to the parallel processors data and instruction memory, and controlling when it starts and stops.
 
 For someone trying to learn how a GPU works, I recommend starting with tiny_gpu and smol_gpu, both great resources which inspired my to begin my design on my parallel processor, which grew through many iterations before becoming what it is now. I will omit from a basic introduction to GPU architecture, instead diving into my design in particular, but to the interested person I suggest the two resources mentioned before: tiny_gpu and smol_gpu.
 
+## Terminology Note
+Before diving in, there are many different sources out there that call different components of the GPU different names, with NVIDIA being one of the more popular. I will define what each terminology means to me, as taken from some sources, but for those more familiar with NVIDIA terminology here is a quick comparison table. One thing to note is that although I use the term lane instead of thread, I still use SIMT (Single Instruction, Multiple Thread) due to it's prevalence and recent increase of usage over the old term SIMD (Single Instruction, Multiple Data).
+| My Design | NVIDIA Equivalent |
+|------|-------|
+| Lane | Thread |
+| Warps | Warp |
+| Core | Streaming Multiprocessor (SM) |
+
+## Quick Specs Summary (WiP)
+| Spec | Value |
+|------|-------|
+| Cores | 3 |
+| Warps per Core | 4 |
+| Lanes per Warp | 16 |
+| Total Threads | 192 |
+| Word Size | 16-bit |
+| Instruction Size | 16-bit |
+| Registers per Lane | 16 (R0-R16) |
+| DMEM per Core | ??? KB |
+| IMEM per Core | ??? KB |
+| Target Clock | ??? MHz |
+| Target Board | Digilent Genesys 2 (Artix-7) |
+
 ### High Level - Parallel architecture at many levels
 There are many layers of parallelization at play in a GPU design, and the terminology between threads, warps, and cores lack universal meaning between companies/architectures, so I will explain how each of these are defined in my design and how each provides a level of parallel abstraction. 
 
-If we were to focus on the "smallest" processing component, we would have a **lane** (or a thread, as some call it). A lane is primarily composed at 16 registers that are, for the most part, unique to it.
+If we were to focus on the "smallest" processing component, we would have a **lane**. A lane is primarily composed at 16 registers that are, for the most part, unique to it.
 
 A lane, however, has no "autonomy"; 16 lanes are controlled by a single **warp**, with the warp being a traditional SIMT (Single Instruction, Multiple Threads). A warp takes in a single instruction, determines which lanes should be running it, then performs the operation on each of the active lanes at the same time. Lets say for example an instruction goes to the warp telling it multiply Register 4 by Register 5, and place the result in Register 6. The warp will apply this operation to each of its 16 lanes, regardless of their values in each of the three registers. This is the basis of SIMT processing. Below is an example of one of these processors running 16 lanes, the design is heavily inspired by RISC-V 5 stage processor with some custom changes to match the architecture closer.
 
 ![Diagram](./images/warp.drawio.png)
 
-While each warp acts as a stand-alone processor in most control aspects, there are some resources they have to share, this is due to the fact that four warps coexist in a single core. Most importantly, these warps share a common ALU, meaning all additions, subtractions, multiplcations, etc. need to be scheduled since only one warp has access to it at a time (This is one of the larger differences between my current design and "realer" GPU's who have many different computational resources that are shared such as FPUs, MACs, etc... See section "Future Work" for how this is a goal to implement. In addition to the ALU, all the warps share a memory controller, which stands between the warps and the DMEM bank, scheduling and performing all reads and writes for the warps. The inclusion of the warps allow for maximized usage of the more bottlenecked and/or hardware intensive blocks while allowing each warp to step through their other instructions in parallel, increasing throughput substantially. Below is a simplified representation of how each component interfaces between eachother.
+While each warp acts as a stand-alone processor in most control aspects, there are some resources they have to share, this is due to the fact that four warps coexist in a single core. Most importantly, these warps share a common ALU, meaning all additions, subtractions, multiplications, etc. need to be scheduled since only one warp has access to it at a time (This is one of the larger differences between my current design and "realer" GPU's who have many different computational resources that are shared such as FPUs, MACs, etc... See section "Future Work" for how this is a goal to implement. In addition to the ALU, all the warps share a memory controller, which stands between the warps and the DMEM bank, scheduling and performing all reads and writes for the warps. The inclusion of the warps allow for maximized usage of the more bottlenecked and/or hardware intensive blocks while allowing each warp to step through their other instructions in parallel, increasing throughput substantially. Below is a simplified representation of how each component interfaces between eachother.
 
 ![Diagram](./images/singlecore.drawio.png)
 
-Finally, we take another step backwards; All together, the 4 warps, memory controller, ALU, and warp scheduled make up a single **core**. Each core is directed towards it's own data memory and instruction memory, which in this case is designed as a ping-pong buffer, which will be talked about later. The Artix-V board is capable of containing three unique cores, each with their own address spaces to work out of. The host, a MicroBlaze V processor, can directly control the reset signal of each core and monitor their "done" signals. Additionally, the MicroBlaze V works with a DMA Engine to transfer data memory between their DMEM space and the DDR3 memory, allowing for high speed operational interface. Below we can again see a simplified demonstration of how these three cores are all maintained by the single host and DMA
+Finally, we take another step backwards; All together, the 4 warps, memory controller, ALU, and warp scheduled make up a single **core**. Each core is directed towards it's own data memory and instruction memory, which in this case is designed as a ping-pong buffer, which will be talked about later. The Artix-7 board is capable of containing three unique cores, each with their own address spaces to work out of. The host, a MicroBlaze V processor, can directly control the reset signal of each core and monitor their "done" signals. Additionally, the MicroBlaze V works with a DMA Engine to transfer data memory between their DMEM space and the DDR3 memory, allowing for high speed operational interface. Below we can again see a simplified demonstration of how these three cores are all maintained by the single host and DMA
 
 ![Diagram](./images/3core.drawio.png)
 
 ### ISA
-WiP - Rough Draft:
+WiP - Rough Draft: Talk about reserved registers, need to double check the ISA here.
 
 Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture/ Further SoC inegration, I chose a relatively simple 16-bit word, 16 bit instruction set, seen below:
 
-| mnemonic | opcode  | funct3 | funct7    |
-|----------|---------|--------|-----------|
-| lui      | S110111 |   —    |     —     |
-| auipc    | S010111 |   —    |     —     |
+
+| Opcode | Mnemonic | Encoding | Description |
+|--------|----------|----------|-------------|
+| `0000` | NOP | `0000 xxxx xxxx xxxx` | No operation |
+| `0011` | ADD | `0011 rd rs rt xxxx` | rd = rs + rt |
+| `0100` | SUB | `0100 rd rs rt xxxx` | rd = rs - rt |
+| `0101` | MUL | `0101 rd rs rt xxxx` | rd = rs × rt |
+| `0110` | DIV | `0110 rd rs rt xxxx` | rd = rs ÷ rt |
+| `0111` | LD | `0111 rd rs xxxx xxxx` | rd = mem[rs] (local) |
+| `1000` | STR | `1000 xx rs rt xxxx` | mem[rs] = rt (local) |
+| `1001` | CONST | `1001 rd imm[7:0]` | rd = zero_extend(imm) |
+| `1010` | CMP | `1010 rd rs rt xxxx` | rd = flags(rs - rt) |
+| `1011` | BRnzp | `1011 nzp[2:0] x imm[7:0]` | Conditional branch by ±imm |
+| `1100` | SYNC | `1100 xxxx xxxx xxxx` | Pop divergence mask stack |
+| `1101` | LDC | `1101 rd rs xxxx xxxx` | rd = mem[rs] (global/shared) |
+| `1110` | STRC | `1110 xx rs rt xxxx` | mem[rs] = rt (global/shared) |
+| `1111` | DONE | `1111 xxxx xxxx xxxx` | Warp execution complete |
+
+**Encoding fields:**
+- `op[15:12]` - Opcode
+- `rd[11:8]` - Destination register
+- `rs[7:4]` - Source register 1
+- `rt[3:0]` - Source register 2
+- `imm[7:0]` - 8-bit immediate (for CONST, BRnzp)
+- `nzp[2:0]` - Branch condition flags (negative/zero/positive)
 
 TALK ABOUT ADDRESS SPACE for each core *************************
 
@@ -73,20 +116,27 @@ WiP: Syntax of Main.C program, functions to run to interface with GPU.
 
 #### Example (give bare example)
 WiP: Brief example of instruction will be here.
+i.e.)
+CONST R0, 5      ; R0 = 5 (all lanes)
+CONST R1, 3      ; R1 = 3 (all lanes)
+ADD R2, R0, R1   ; R2 = 8 (all lanes)
+DONE
+
 
 ## Project structure (directory break down)
 WiP: Finalizing Directory.
 
 ## Simulation
-Because this project was designed and built with a board in mind (the Artix-V), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. 
+Because this project was designed and built with a board in mind (the Artix-7), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. 
 
-For those who do have access to an Artix-V board I highly encourage running the full programs onto the MicroBlaze. For those who do not, I hope the simulation of a single core running a matrix multiplcation is interesting enough to saite you. 
+For those who do have access to an Artix-7 board I highly encourage running the full programs onto the MicroBlaze. For those who do not, I hope the simulation of a single core running a matrix multiplcation is interesting enough to sate you. 
 
 ### Make File
 WiP: As name suggests, have the Make file.
 
-### Roofline analysis, Metrics taken, etc.
-WiP: Will talk about analysis of hardware utilization, memory and computation bandwidth, and OI
+### Roofline analysis, Metrics taken, etc. 
+WiP: Will talk about analysis of hardware utilization, memory and computation bandwidth, and OI.
+Make sure to talk about clock cycles per certain operations, give examples.
 
 ### Educational: Interesting Timing Problems
 For educational reasons, I wanted to talk briefly about two of the more interesting examples of timing problems I ran into during the development of this project, read only if interested:
@@ -100,13 +150,13 @@ Special thanks go to Nick Beser, my academic advisor providing guidance on the d
 
 Johns Hopkins University for the Genesys 2 Board which I build the SoC on.
 
-Adam Majmudar, the creator of [tiny-gpu](https://github.com/adam-maj/tiny-gpu), and 
-Grubre Jakub, the creator of [smol-gpu](https://github.com/Grubre/smol-gpu). 
+Adam Majmudar, the creator of [tiny-gpu](https://github.com/adam-maj/tiny-gpu), and  
+Grubre Jakub, the creator of [smol-gpu](https://github.com/Grubre/smol-gpu).  
 My inspiration for starting this project was heavily taken from these two very educational and interesting projects.
 
 The architecture itself is a modified variant of [RISC-V](https://github.com/riscv)
 
-## Roadmap
+## Roadmap / Limitations (Talk about how this is still limited in these ways)
 There is still a lot of work to be done around the GPU itself. As a whole I want to make the GPU itself more "realistic" and faster, which is a drive for many of my future goals
 
 - [ ] Add Floating Point Unit
@@ -116,4 +166,4 @@ There is still a lot of work to be done around the GPU itself. As a whole I want
 - [ ] Implement Caching
 - [ ] Move to 32 bit words and instructions.
 - [ ] Build as assembler to allow easier programming.
-- [ ] Consolodate concurrent and non-concurrent memory instructions
+- [ ] Consolidate concurrent and non-concurrent memory instructions
