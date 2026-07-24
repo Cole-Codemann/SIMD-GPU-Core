@@ -137,21 +137,6 @@ cmake --build . -j$(nproc)
 # You can also run the tests with the ctest command when in the build directory
 ```
 
-### Timing problems addressed (make this unique, duh)
-Registering Mask
-Lookahead on controller requests
-Change from full combinational to scoreboard
-
-The produced exectuable is located at `build/sim/simulator` (or you can just use the justfile).
-You can run it in the following way:
-```bash
-./build/sim/simulator <input_file.as> <data_file.bin>
-```
-The simulator will first assemble the input file and load the binary data file into the GPU data memory.
-The program will fail if the assembly code contained in the input file is ill-formed.
-
-In case it manages to assemble the code, it will then run the simulation and print the first 100 words of the memory to the console.
-This is a temporary solution and will be replaced by a more sophisticated output mechanism in the future.
 
 ### Roofline analysis, Metrics taken, etc.
 Analysis of hardware utilization
@@ -169,15 +154,27 @@ The program will fail if the assembly code contained in the input file is ill-fo
 In case it manages to assemble the code, it will then run the simulation and print the first 100 words of the memory to the console.
 This is a temporary solution and will be replaced by a more sophisticated output mechanism in the future.
 
+### Educational: Interesting Timing Problems
+Registering Mask
+Lookahead on controller requests
+Change from full combinational to scoreboard
+
+For educational reasons, I wanted to talk briefly about two of the more interesting examples of timing problems I ran into during the development of this project, read only if interested:
+
+When building the mask stack to determine divergence, particularly for nested loops, my output mask value was originally a combinational circuit taken from OR'ing each lane in all masks on the stack. This mask would then be used to determine other combinational logic, such as data forwarding causing long combinational paths. To solve this, I changed my output mask to be registered and only update on pops or pushes to the mask stack, cutting combinational path in half without any need to introduce bubbles or architectural slowdown.
+
+The next example came from giving ALU access to the warps. I wanted to make sure that if the resources were available, the clock cycle that the ALU was needed by a warp, it could be given access and register the results on the next clock cycle. Having the warps request access on the cycle they needed failed timing, since the request had to go through the warp controllers FSM, then feed into large mux's to select that warps data, then go through the ALU itself, too long of a combinational path for a single clock cycle. To fix this, I included into the warps a lookahead circuit which would determine if on the next clock cycle it would need the ALU, based on factors such as expected stalling. This lookahead circuit would give the warp controller time register access for the warp into the mux, allowing for the warp to flow through the ALU on the clock cycle the data was ready. The logic for this lookahead became increasingly complex with the introduction of scoreboarding, ability to chain together multiple requests, and stalls that lasted an unpredictable amount of time.
 
 ## Acknowledgments
-Special thanks go to Adam Majmudar, the creator of [tiny-gpu](https://github.com/adam-maj/tiny-gpu).
-As previously mentioned, this project is heavily inspired by it and built on top of it.
+Special thanks go to Nick Beser, my academic advisor providing guidance on the development of the SoC.
 
-The architecture itself is a modified variant of [RISC-V](https://github.com/riscv) RV32I.
+Johns Hopkins University for the Genesys 2 Board which I build the SoC on.
 
-Much of the knowledge I've gathered in order to create this project comes from the General-Purpose Graphics Processor Architecture book(2018) by Tor M. Aamodt, Wilson Wai Lun Fung and Timothy G. Rogers,
-which I highly recommend for anyone interested in the topic.
+Adam Majmudar, the creator of [tiny-gpu](https://github.com/adam-maj/tiny-gpu), and 
+Grubre Jakub, the creator of [smol-gpu](https://github.com/Grubre/smol-gpu). 
+My inspiration for starting this project was heavily taken from these two very educational and interesting projects.
+
+The architecture itself is a modified variant of [RISC-V](https://github.com/riscv)
 
 ## Roadmap
 There is still a lot of work to be done around the GPU itself. As a whole I want to make the GPU itself more "realistic" and faster, which is a drive for many of my future goals
