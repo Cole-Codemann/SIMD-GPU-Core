@@ -43,22 +43,28 @@ The CMP, BRnzp, and SYNC instruction carry all the weight of controlling the flo
 
 ![Diagram](./images/Warp-Divergence.drawio.png)
 
-Some nuances for this design include the choice to not add the mask stack when an unconditional branch has all lanes taking the branch, typically done by allowing a branch of the n, z, or p flags are set: nzp = '111'. This allows for programmers to jump around their instruction count freely using unconditional branching (essentially, a jump instruction) without fear of overflowing the mask stack. Additionally, a programmer is able to apply a mask without jumping to a new PC at all, by setting the lower 8 bits of the BRnzp instruction to all 0's, the processor never adds to it's PC and steps forward normally, with the new mask applied. 
+Some nuances for this design include the choice to not add the mask stack when an unconditional branch has all lanes taking the branch, typically done by allowing a branch of the n, z, or p flags are set: nzp = '111'. This allows for programmers to jump around their instruction count freely using unconditional branching (essentially, a jump instruction) without fear of overflowing the mask stack. Additionally, a programmer is able to apply a mask without jumping to a new PC at all, by setting the lower 8 bits of the BRnzp instruction to all 0's, the processor never adds to it's PC and steps forward normally, with the new mask applied.
 
-## Assembly (here lets talk about the main.c code that drives the program)
-Currently, the supported assembly is quite simple.
-It takes a single input file and line by line compiles it into machine code.
+## Memory Controllers
+The next hurdle to overcome, beyond the scope of a single SIMT, was to have our hardware determine how to allocate shared resources between each warp. Starting with the memory controller, this is a major bottleneck for any processor design, even with all data being preloaded into allocated BRAM by the host to enable fast read/write times. 
 
-There are two directives supported:
-- `.blocks <num_blocks>` - denotes the number of blocks to dispatch to the GPU,
-- `.warps <num_blocks>` - denotes the number of warps to execute per each block
+To start with the warps side, when a memory request is made from a warp, it signals out to the memory controller whether it needs a load or read performed, and whether that request is concurrent or not (more into this shortly). The warp will hold this signal high until the memory controller pulses an acknoledgement, at which time the warp knows it's request has been read. The warp will then hold the data in the EXE until the memory controller sends another signal, signifying it's finished the request. In the case of a read request, this signal acts as a 'valid' pulse which the warp will recognize and store the data from the memory controller into it's EXE2 register, continuing the pipeline. 
 
-Together they form an API similar to that of CUDA:
-```cuda
-kernel<<<numBlocks, threadsPerBlock>>>(args...)`
-```
-The key difference being that CUDA allows you to set the number of threads per block while this GPU accepts the number of warps per block as a kernel parameter. 
-A compiler developer can still implement the CUDA API using execution masking.
+I implemented two modes of read/write instructions for the warps to use depending on use case when interfacing with the memory controller: concurrent and non-concurrent. Given 16 lanes per warp, meaning 16 unique word read/writes across any range of memory space, the non-concurrent instruction performs close to how one might expect; The memory controller goes to the targeted memory address for each unmasked lane and performs the operation needed there, whether that's writing data from another register in that lane, or reading the value in memory which is stores locally until finished and ready to present back to the warp. This, however, involves up to 16 unique memory accesses. This revealed to be a major bottleneck in almost every benchmark operation tested.
+
+After observing this benchmark, I created two more instructions for concurrent read and write operations. The thought process here is that host will present words concurrently in the memory space for many of the operations faced, from matrix multiplication, to most types of vector math. I therefore widened the BRAM port to 8 words and created the concurrent instructions to follow the condition that each lane must be filled with the address in lane 0 plus targeted lane id. In practice this looks similar to copying over a 16 word wide vector starting an the memory address in lane 0. This allows for memory operations to be performed in 2 operations instead of 16, significantly opening the bottleneck of operation, especially for initial reads which are typically well-ordered by the host.
+
+## ALU Controller
+The ALU controller is responsible for ensuring fair and clear usage of the ALU lanes, a single block of hardware in our case. The controller maintains fine-course warp scheduling with round-robin arbitration. This hands off access between the warps by clock cycle depending on when they need to perform a computation, and doesn't allow for a single warp to run consecutively when another is waiting for access. 
+
+## MicroBlaze V and SoC Implementation
+The MicroBlaze V (MBV) acts as the host of the system, and is communicated to via the Vitis suite, allowing for direct writing to the host without needing to reprogram the full FPGA. The MBV is capable of directly writing to and from the Data and Instruction memory spaces of the GPU via AXI *FIGURE OUT WHAT WORD GOES HERE* that connects it. The process of directly reading and writing, especially on the large address space that holds the data memory, is very slow for the MBV to do directly, which is why the DMA was created and is primarily responsible.
+
+Currently, on initialization, the MBV loads the DDR3 space with instruction sets corresponding to commonly used program; in my case, I have three operations loaded and used as my primary benchmark measures. The MBV holds the addresses and size of these instructions and can pass them to the DMA to load into the instruction space of any of the cores. Similarly, the DMA is controlled by the MBV to read and write to the data memory space of each of the GPU cores in order to maintain high core utilization. 
+
+Each core memory space is built as a ping-pong buffer by diving the total address space in two. The GPU core does not have control of which address space it is reading and writing to, as this is something fully controlled by the host. This allows the same instruction set in the GPU to be able to run two times in a immediate succession, each targeting a different data memory space, while the host collects the data from the finished operation and prepares the space again for the next, maximizing core utilization.
+
+Currently, the addition of the two additional cores on top of the first has had a near 0% slowdown on core utilization, with the DMA able to successfully service all 3 DMEM spaces and sustain their buffers on my benchmark consecutive 16x16 matrix multiplication operations.
 
 ### Syntax
 The general syntax looks as follows:
@@ -132,6 +138,10 @@ cmake --build . -j$(nproc)
 ```
 
 ### Timing problems addressed (make this unique, duh)
+Registering Mask
+Lookahead on controller requests
+Change from full combinational to scoreboard
+
 The produced exectuable is located at `build/sim/simulator` (or you can just use the justfile).
 You can run it in the following way:
 ```bash
@@ -144,6 +154,10 @@ In case it manages to assemble the code, it will then run the simulation and pri
 This is a temporary solution and will be replaced by a more sophisticated output mechanism in the future.
 
 ### Roofline analysis, Metrics taken, etc.
+Analysis of hardware utilization
+OI
+
+
 The produced exectuable is located at `build/sim/simulator` (or you can just use the justfile).
 You can run it in the following way:
 ```bash
@@ -175,5 +189,6 @@ There is still a lot of work to be done around the GPU itself. As a whole I want
 - [ ] Implement Caching
 - [ ] Move to 32 bit words and instructions.
 - [ ] Build as assembler to allow easier programming.
+- [ ] Consolodate concurrent and non-concurrent memory instructions
 
 Another step would be to implement a CUDA-like compiler as writing the assembly gets very tedious, especially with manually masking out the threads for branching.
