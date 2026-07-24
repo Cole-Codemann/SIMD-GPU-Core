@@ -25,6 +25,8 @@ Finally, we take another step backwards; All together, the 4 warps, memory contr
 ![Diagram](./images/3core.drawio.png)
 
 ### ISA
+WiP - Rough Draft:
+
 Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture/ Further SoC inegration, I chose a relatively simple 16-bit word, 16 bit instruction set, seen below:
 
 | mnemonic | opcode  | funct3 | funct7    |
@@ -39,7 +41,7 @@ All arithmetic operations are applied to every valid lane within the warp. Howev
 ## Divergence
 Whereas a classic CPU has a straightforward idea of branching, and changing PC depending on conditional tests, a SIMT processor has more complication to it, due to the simple question "what if some lanes meet the condition to branch, but others don't?". There are many unique approaches to this problem, I decided to implement my own slightly modified design involving NZP flags, stacked masks, and conditional branching. 
 
-The CMP, BRnzp, and SYNC instruction carry all the weight of controlling the flow of the warp and divergence. The CMP instruction subtracts one register from another and sets the n - negative, z - zero, and p - postive flag depending on the result, calculated unique for each lane. The BRnzp instruction allows the programmer to determine which flags to look for when deciding when to branch, for example if nzp = '100' in the instruction, then only the lanes with their negative flag set will branch, applying a mask to all other lanes. The destination of the branch is equal to the current PC plus the signed 8-wide immediate passed into the instruction. When a mask is applied to a warp, that particular mask also gets pushed into a LIFO stack. The overall mask applied to the warp will be the "or'ed" result of the entire mask stack, allowing for nested branches. When a SYNC instruction is called, it simply pops the top mask off the stack. Below is an example of nested masks and SYNC call:
+The CMP, BRnzp, and SYNC instruction carry all the weight of controlling the flow of the warp and divergence. The CMP instruction subtracts one register from another and sets the n - negative, z - zero, and p - postive flag depending on the result, calculated unique for each lane. The BRnzp instruction allows the programmer to determine which flags to look for when deciding when to branch, for example if nzp = '100' in the instruction, then only the lanes with their negative flag set will branch, applying a mask to all other lanes. The destination of the branch is equal to the current PC plus the signed 8-wide immediate passed into the instruction. When a mask is applied to a warp, that particular mask also gets pushed into a LIFO stack. The overall mask applied to the warp will be the OR'ed result of the entire mask stack, allowing for nested branches. When a SYNC instruction is called, it simply pops the top mask off the stack. Below is an example of nested masks and SYNC call:
 
 ![Diagram](./images/Warp-Divergence.drawio.png)
 
@@ -66,102 +68,30 @@ Each core memory space is built as a ping-pong buffer by diving the total addres
 
 Currently, the addition of the two additional cores on top of the first has had a near 0% slowdown on core utilization, with the DMA able to successfully service all 3 DMEM spaces and sustain their buffers on my benchmark consecutive 16x16 matrix multiplication operations.
 
-### Syntax
-The general syntax looks as follows:
-```
-<mnemonic> <rd>, <rs1>, <rs2>       ; For R-type
-<mnemonic> <rd>, <rs1>, <imm>       ; For I-type
-<mnemonic> <rd>, <imm>              ; For U-type
-<mnemonic> <rd>, <imm>(<rs1>)       ; For Load/Store
-HALT                                ; For HALT
-jalr <rd>, <label>                  ; jump to label
-jalr <rd>, <imm>(<rs1>)             ; jump to register + offset
-```
-In order to turn the instruction from vector to scalar you can add the `s.` prefix.
-So if you want to execute the scalar version of `addi` you would put `s.addi` as the mnemonic and use scalar registers as `src` and `dest`.
+### Syntax of Main.C program
+WiP: Syntax of Main.C program, functions to run to interface with GPU.
 
-Each of the operands must be separated by a comma.
+#### Example (give bare example)
+WiP: Brief example of instruction will be here.
 
-The comments are single line and the comment char is `#`.
-
-#### Example
-An example program might look like this:
-```python
-.blocks 32
-.warps 12
-
-# This is a comment
-jalr x0, label              # jump to label
-label: addi x5, x1, 1       # x5 := thread_id + 1
-sx.slti s1, x5, 5           # s1[thread_id] := x5 < 5 (mask)
-sw x5, 0(x1)                # mem[thread_id] := x5 (only non-masked threads exectute this)
-halt                        # Stop the execution
-```
-
-## Project structure
-The project is split into several subdirectories:
-- `external` - contains external dependencies (e.g. doctest)
-- `src` - contains the system-verilog implementation of the GPU
-- `sim` - contains the verilator based simulation environment and the assembler
-- `test` - contains test files for the GPU, the assembler and the simulator
+## Project structure (directory break down)
+WiP: Finalizing Directory.
 
 ## Simulation
 Because this project was designed and built with a board in mind (the Artix-V), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. 
 
 For those who do have access to an Artix-V board I highly encourage running the full programs onto the MicroBlaze. For those who do not, I hope the simulation of a single core running a matrix multiplcation is interesting enough to saite you. 
 
-### Justfile (maybe we run this version instead of make)
-First, and the more convenient way, is to use the provided [justfile](https://github.com/casey/just).
-`Just` is a modern alternative to `make`, which makes it slightly more sane to write build scripts with.
-In the case of this project, the justfile is a very thin wrapper around cmake.
-The available recipes are as follows:
-- `compile` - builds the verilated GPU and the simulator
-- `run <input_file.as> [data_file.bin]` - builds and then runs the simulator with the given assembly file
-- `test` - runs the tests for the GPU, the assembler and the simulator
-- `clean` - removes the build directory
-
-In order to use it, just type `just <recipe>` in one of the subdirectories.
-
-**Note, that the paths you pass as arguments to the `run` recipe are relative to the root of the project.
-This is due to the way that the `just` command runner works.**
-
-### CMake
-As mentioned, the justfile is only a wrapper around cmake.
-In case you want to use it directly, follow these steps:
-```bash
-mkdir build
-cd build
-cmake ..
-cmake --build . -j$(nproc)
-# The executable is build/sim/simulator
-# You can also run the tests with the ctest command when in the build directory
-```
-
+### Make File
+WiP: As name suggests, have the Make file.
 
 ### Roofline analysis, Metrics taken, etc.
-Analysis of hardware utilization
-OI
-
-
-The produced exectuable is located at `build/sim/simulator` (or you can just use the justfile).
-You can run it in the following way:
-```bash
-./build/sim/simulator <input_file.as> <data_file.bin>
-```
-The simulator will first assemble the input file and load the binary data file into the GPU data memory.
-The program will fail if the assembly code contained in the input file is ill-formed.
-
-In case it manages to assemble the code, it will then run the simulation and print the first 100 words of the memory to the console.
-This is a temporary solution and will be replaced by a more sophisticated output mechanism in the future.
+WiP: Will talk about analysis of hardware utilization, memory and computation bandwidth, and OI
 
 ### Educational: Interesting Timing Problems
-Registering Mask
-Lookahead on controller requests
-Change from full combinational to scoreboard
-
 For educational reasons, I wanted to talk briefly about two of the more interesting examples of timing problems I ran into during the development of this project, read only if interested:
 
-When building the mask stack to determine divergence, particularly for nested loops, my output mask value was originally a combinational circuit taken from OR'ing each lane in all masks on the stack. This mask would then be used to determine other combinational logic, such as data forwarding causing long combinational paths. To solve this, I changed my output mask to be registered and only update on pops or pushes to the mask stack, cutting combinational path in half without any need to introduce bubbles or architectural slowdown.
+When building the mask stack to determine divergence, particularly for nested loops, my output mask value was originally a combinational circuit taken from OR'ing each lane in all masks on the stack. This mask would then be used to determine other combinational logic, such as data forwarding, causing long combinational paths. To solve this, I changed my output mask to be registered and only update on pops or pushes to the mask stack, cutting combinational path significantly without any need to introduce bubbles or architectural slowdown.
 
 The next example came from giving ALU access to the warps. I wanted to make sure that if the resources were available, the clock cycle that the ALU was needed by a warp, it could be given access and register the results on the next clock cycle. Having the warps request access on the cycle they needed failed timing, since the request had to go through the warp controllers FSM, then feed into large mux's to select that warps data, then go through the ALU itself, too long of a combinational path for a single clock cycle. To fix this, I included into the warps a lookahead circuit which would determine if on the next clock cycle it would need the ALU, based on factors such as expected stalling. This lookahead circuit would give the warp controller time register access for the warp into the mux, allowing for the warp to flow through the ALU on the clock cycle the data was ready. The logic for this lookahead became increasingly complex with the introduction of scoreboarding, ability to chain together multiple requests, and stalls that lasted an unpredictable amount of time.
 
