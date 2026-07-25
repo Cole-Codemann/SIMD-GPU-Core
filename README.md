@@ -59,7 +59,6 @@ Each instruction is passed into IMEM and given to every warp in the core. In ord
 | `0011` | ADD | `0011 rd rs rt` | rd = rs + rt |
 | `0100` | SUB | `0100 rd rs rt` | rd = rs − rt |
 | `0101` | MUL | `0101 rd rs rt` | rd = rs × rt |
-| `0110` | DIV | `0110 rd rs rt` | rd = rs ÷ rt |
 | `0111` | LDR | `0111 rd rs xxxx` | rd = mem[rs] |
 | `1000` | STR | `1000 xxxx rs rt` | mem[rs] = rt |
 | `1001` | CONST | `1001 rd imm[7:0]` | rd = zero_extend(imm) |
