@@ -20,13 +20,14 @@ Before diving in, there are many different sources out there that call different
 | Cores | 3 |
 | Warps per Core | 4 |
 | Lanes per Warp | 16 |
-| Total Threads | 192 |
+| Total Lanes | 192 |
 | Word Size | 16-bit |
 | Instruction Size | 16-bit |
 | Registers per Lane | 16 (R0-R16) |
-| DMEM per Core | ??? KB |
-| IMEM per Core | ??? KB |
-| Target Clock | ??? MHz |
+| Address spaces per Core | 2 |
+| IMEM per Address space | 4 KB |
+| DMEM per Address space | 32 KB |
+| Target Clock | 100 MHz |
 | Target Board | Digilent Genesys 2 (Artix-7) |
 
 ### High Level - Parallel architecture at many levels
@@ -55,18 +56,18 @@ Each instruction is passed into IMEM and given to every warp in the core. In ord
 | Opcode | Mnemonic | Encoding | Description |
 |--------|----------|----------|-------------|
 | `0000` | NOP | `0000 xxxx xxxx xxxx` | No operation |
-| `0011` | ADD | `0011 rd rs rt xxxx` | rd = rs + rt |
-| `0100` | SUB | `0100 rd rs rt xxxx` | rd = rs - rt |
-| `0101` | MUL | `0101 rd rs rt xxxx` | rd = rs × rt |
-| `0110` | DIV | `0110 rd rs rt xxxx` | rd = rs ÷ rt |
-| `0111` | LD | `0111 rd rs xxxx xxxx` | rd = mem[rs] (local) |
-| `1000` | STR | `1000 xx rs rt xxxx` | mem[rs] = rt (local) |
+| `0011` | ADD | `0011 rd rs rt` | rd = rs + rt |
+| `0100` | SUB | `0100 rd rs rt` | rd = rs − rt |
+| `0101` | MUL | `0101 rd rs rt` | rd = rs × rt |
+| `0110` | DIV | `0110 rd rs rt` | rd = rs ÷ rt |
+| `0111` | LDR | `0111 rd rs xxxx` | rd = mem[rs] |
+| `1000` | STR | `1000 xxxx rs rt` | mem[rs] = rt |
 | `1001` | CONST | `1001 rd imm[7:0]` | rd = zero_extend(imm) |
-| `1010` | CMP | `1010 rd rs rt xxxx` | rd = flags(rs - rt) |
+| `1010` | CMP | `1010 xxxx rs rt` | NZP flags = flags(rs − rt) |
 | `1011` | BRnzp | `1011 nzp[2:0] x imm[7:0]` | Conditional branch by ±imm |
 | `1100` | SYNC | `1100 xxxx xxxx xxxx` | Pop divergence mask stack |
-| `1101` | LDC | `1101 rd rs xxxx xxxx` | rd = mem[rs] (global/shared) |
-| `1110` | STRC | `1110 xx rs rt xxxx` | mem[rs] = rt (global/shared) |
+| `1101` | LDC | `1101 rd rs xxxx` | rd = mem[base+lane] (concurrent) |
+| `1110` | STRC | `1110 xxxx rs rt` | mem[base+lane] = rt (concurrent) |
 | `1111` | DONE | `1111 xxxx xxxx xxxx` | Warp execution complete |
 
 **Encoding fields:**
@@ -77,7 +78,13 @@ Each instruction is passed into IMEM and given to every warp in the core. In ord
 - `imm[7:0]` - 8-bit immediate (for CONST, BRnzp)
 - `nzp[2:0]` - Branch condition flags (negative/zero/positive)
 
-TALK ABOUT ADDRESS SPACE for each core *************************
+The DMEM address space seen by the core is 14 bits wide.
+There are three special registers in each lane:
+R0 = Always 0
+R1 = Lane ID
+R2 = Warp ID
+
+Utilizing the Lane and Warp ID is the key to having a single program address a range of address space across various warps and lanes.
 
 All arithmetic operations are applied to every valid lane within the warp. However, with relatively simple masking applied through the software, operations done on any abitrary number of lanes is easy to accomplish.
 
@@ -111,17 +118,72 @@ Each core memory space is built as a ping-pong buffer by diving the total addres
 
 Currently, the addition of the two additional cores on top of the first has had a near 0% slowdown on core utilization, with the DMA able to successfully service all 3 DMEM spaces and sustain their buffers on my benchmark consecutive 16x16 matrix multiplication operations.
 
-### Syntax of Main.C program
-WiP: Syntax of Main.C program, functions to run to interface with GPU.
+## Example: Programming the GPU from MicroBlaze
 
-#### Example (give bare example)
-WiP: Brief example of instruction will be here.
-i.e.)
-CONST R0, 5      ; R0 = 5 (all lanes)
-CONST R1, 3      ; R1 = 3 (all lanes)
-ADD R2, R0, R1   ; R2 = 8 (all lanes)
-DONE
+Instructions are 16-bit, packed two-per-32-bit word via `PACK(even_PC, odd_PC)`. MicroBlaze writes packed words to IMEM, loads data into DMEM, then releases the GPU and polls for completion.
 
+### Minimal Example
+
+```
+PC 0: CONST R3, 5       ; R3 = 5 (all lanes)          → 0x9305
+PC 1: CONST R4, 3       ; R4 = 3 (all lanes)          → 0x9403
+PC 2: ADD   R5, R3, R4  ; R5 = 8 (all lanes)          → 0x3534
+PC 3: STR   R0, R5      ; mem[0] = R5 = 8             → 0x8005
+PC 4: DONE              ;                              → 0xF000
+```
+```c
+#include "main.h"
+
+static const u32 program[] = {
+    PACK(0x9305, 0x9403),
+    PACK(0x3534, 0x8005),
+    PACK(INSTR_DONE, INSTR_DONE),
+};
+
+int main(void) {
+    gpu_hold();
+    imem_write(program, 3);
+    gpu_release_run();
+    while (!gpu_done());
+    xil_printf("Result: %d\r\n", dmem_read16(0));  // 8
+    gpu_stop();
+    while (1);
+}
+```
+
+### Practical Example: Running a Matrix Multiply
+
+```c
+#include "main.h"
+#include "kernel_library.h"
+
+int main(void) {
+    gpu_hold();
+    kernel_library_init();
+    load_kernel_direct(KERNEL_MATMUL);
+
+    // Bulk-copy input matrices from DDR3 (pre-staged) into DMEM via CDMA
+    cdma_reset();
+    cdma_transfer(DDR3_BASE + DDR3_MAT_A_OFFSET, DMEM_BYTE_ADDR(MAT_A_BASE), MAT_BYTES);
+    cdma_transfer(DDR3_BASE + DDR3_MAT_B_OFFSET, DMEM_BYTE_ADDR(MAT_B_BASE), MAT_BYTES);
+    dmem_clear(MAT_C_BASE, 256);
+    fence();
+
+    gpu_release_run();
+    while (!gpu_done());
+
+    u32 cycles = gpu_active_cycles();
+    gpu_stop();
+
+    xil_printf("Done in %d cycles, C[0][0] = %d\r\n",
+               cycles, dmem_read16(MAT_C_BASE));
+    while (1);
+}
+```
+
+**Pattern:** hold → load kernel → load data → release → poll → read results → stop.
+
+A more complete program involving multiple cores, alternating address spaces, and repeated operations can be found in the repo.
 
 ## Project structure (directory break down)
 WiP: Finalizing Directory.
@@ -134,9 +196,51 @@ For those who do have access to an Artix-7 board I highly encourage running the 
 ### Make File
 WiP: As name suggests, have the Make file.
 
-### Roofline analysis, Metrics taken, etc. 
-WiP: Will talk about analysis of hardware utilization, memory and computation bandwidth, and OI.
-Make sure to talk about clock cycles per certain operations, give examples.
+### Performance
+Here are some tangible results of common parallel workloads, when ran on one of my cores.
+
+| Kernel | Description | GPU Cycles |
+|--------|-------------|------------|
+| 16×16 Matrix Multiply | 4 warps each compute 4 rows of result | 6,286 |
+| Exclusive Prefix Scan | Hillis-Steele across 16 lanes | 354 |
+| 1D 3-Point Stencil | Clamped boundary, 16 elements | 197 |
+
+Multi-core scaling was measured by running the same matmul kernel across 1–3 cores simultaneously and comparing total session time:
+
+| Cores | Cycles | Total Ops | Scaling |
+|-------|--------|-----------|---------|
+| 1 | 6,489 | 8,192 | 1.00× |
+| 2 | 6,697 | 16,384 | 1.93× |
+| 3 | 6,881 | 24,576 | 2.83× |
+
+The near-linear scaling comes from each core having its own DMEM and the CDMA being fast enough to keep all three fed without contention. This is a great sign!
+
+### Roofline Analysis
+I performed some roofline analysis to see the limits of my processor design. A Roofline model plots a kernel's throughput against its operational intensity (OI) — the ratio of compute operations to bytes of memory moved. Two ceilings define the upper bound: a flat compute ceiling (how fast the ALU can work) and a sloped memory bandwidth ceiling (how fast data moves in and out). Where they intersect is the ridge point; kernels below the ridge are memory-bound, kernels above are compute-bound.
+
+Ceilings were measured empirically on hardware:
+
+| Metric | Value |
+|--------|-------|
+| Compute ceiling (useful ops) | 1,064 MIOPS/core |
+| Compute ceiling (total, incl. overhead) | 1,596 MIOPS/core |
+| Theoretical max | 1,600 MIOPS (16 ops/cycle @ 100 MHz) |
+| Memory BW (concurrent) | 709 MB/s |
+| Memory BW (sequential) | 172 MB/s |
+True Memory BW depends on operation composition of concurrent versus sequential memory accesses.
+
+All three benchmark kernels fall below the concurrent ridge point, making them memory-bound:
+
+| Kernel | Ops/Byte (OI) | MIOPS | MB/s | Bottleneck |
+|--------|---------------|-------|------|------------|
+| 16×16 Matrix Multiply | 0.484 | 130 | 268 | Memory |
+| Exclusive Prefix Scan | 0.189 | 55 | 291 | Memory |
+| 1D Stencil | 0.250 | 64 | 259 | Memory |
+
+This is expected — with a single shared ALU and wide 128-bit concurrent memory access, the compute ceiling is high relative to what these kernels demand, but they can't move data fast enough to reach it. The concurrent memory instructions (LDC/STRC) were a direct response to early benchmarking, improving memory throughput roughly 4× over sequential access for well-ordered patterns.
+
+A more thorough roofline analysis with plots and detailed methodology is covered in the accompanying design report, not included in this repo.
+
 
 ### Educational: Interesting Timing Problems
 For educational reasons, I wanted to talk briefly about two of the more interesting examples of timing problems I ran into during the development of this project, read only if interested:
