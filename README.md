@@ -229,7 +229,7 @@ A more complete program involving multiple cores, alternating address spaces, an
 SIMD-GPU-Core/  
 ├── README.md  
 │  
-├── rtl/                    # Everything needed to simulate single-core  
+├── rtl/                    # Everything needed to simulate single-core; Non-vendor specific HDL  
 │   ├── src/  
 │   │   └── *.sv  
 │   └── tb/                   
