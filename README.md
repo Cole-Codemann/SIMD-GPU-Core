@@ -1,4 +1,4 @@
-# Tri-Core GPGPU SoC With Microblaze-V Host 
+# Tri-Core GPU SoC With Microblaze-V Host 
 An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Kintex-7 board.
 
 ## Introduction
@@ -59,6 +59,7 @@ Developed and tested on 2025.2 only. Older versions may not support MicroBlaze V
 | Peak ALU Throughput | 1,596 MIOPS (99.8% of theoretical) |
 | Memory BW (concurrent) | 709 MB/s |
 | Memory BW (sequential) | 172 MB/s |
+All three benchmark kernels are memory-bound. Detailed analysis is in the Performance and Roofline sections.
 
 ## Terminology Note
 Before diving in, there are many different sources out there that call different components of the GPU different names, with NVIDIA being one of the more popular. I will define what each terminology means to me, as taken from some sources, but for those more familiar with NVIDIA terminology here is a quick comparison table. One thing to note is that although I use the term lane instead of thread, I still use SIMT (Single Instruction, Multiple Thread) due to it's prevalence and recent increase of usage over the old term SIMD (Single Instruction, Multiple Data).
@@ -270,10 +271,12 @@ Multi-core scaling was measured by running the same matmul kernel across 1–3 c
 | 2 | 6,697 | 16,384 | 1.93× |
 | 3 | 6,881 | 24,576 | 2.83× |
 
-The near-linear scaling comes from each core having its own DMEM and the CDMA being fast enough to keep all three fed without contention. This is a great sign!
+The near-linear scaling comes from each core having its own DMEM and the CDMA being fast enough to keep all three fed without contention.
 
 ### Roofline Analysis
-I performed some roofline analysis to see the limits of my processor design. A Roofline model plots a kernel's throughput against its operational intensity (OI) — the ratio of compute operations to bytes of memory moved. Two ceilings define the upper bound: a flat compute ceiling (how fast the ALU can work) and a sloped memory bandwidth ceiling (how fast data moves in and out). Where they intersect is the ridge point; kernels below the ridge are memory-bound, kernels above are compute-bound.
+I performed some roofline analysis to see the limits of my processor design. A Roofline model plots a kernel's throughput against its operational intensity (OI) — the ratio of compute operations to bytes of memory moved. Two ceilings define the upper bound: a flat compute ceiling (how fast the ALU can work) and a sloped memory bandwidth ceiling (how fast data moves in and out). Where they intersect is the ridge point; kernels below the ridge are memory-bound, kernels above are compute-bound. The three benchmark kernels and several synthetic probes are plotted against both bandwidth ceilings below.
+
+![Diagram](./images/roofline_graph.png)
 
 Ceilings were measured empirically on hardware:
 
@@ -294,11 +297,7 @@ All three benchmark kernels fall below the concurrent ridge point, making them m
 | Exclusive Prefix Scan | 0.189 | 55 | 291 | Memory |
 | 1D Stencil | 0.250 | 64 | 259 | Memory |
 
-This is expected — with a single shared ALU and wide 128-bit concurrent memory access, the compute ceiling is high relative to what these kernels demand, but they can't move data fast enough to reach it. The concurrent memory instructions (LDC/STRC) were a direct response to early benchmarking, improving memory throughput roughly 4× over sequential access for well-ordered patterns.
-
-Below is a graph showing how three common benchmarks place on the roofline graph in addition to other operations designed to have set OI.
-
-
+This is expected, with a single shared ALU and wide 128-bit concurrent memory access, the compute ceiling is high relative to what these kernels demand, but they can't move data fast enough to reach it. The concurrent memory instructions (LDC/STRC) were a direct response to early benchmarking, improving memory throughput roughly 4× over sequential access for well-ordered patterns.
 
 ### Educational: Interesting Timing Problems
 For educational reasons, I wanted to talk briefly about two of the more interesting examples of timing problems I ran into during the development of this project, read only if interested:
