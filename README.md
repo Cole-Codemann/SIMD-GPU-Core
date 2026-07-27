@@ -1,20 +1,38 @@
-# Tri-Core GPGPU SoC With Microblaze-V Host 
-An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Artix-7 board.
+# Tri-Core GPU SoC With Microblaze-V Host 
+An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Kintex-7 board.
 
 ## Introduction
 The purpose of this project was to further my own understanding of parallel processors and familiarize myself with new tools in FPGA design, such as block diagram to instantiate hard IPs like the MicroBlaze V, DMA Engines, DDR3 Memory, AXI controllers, etc. Additionally to practice the development of firmware to the host controller in charge of writing to the parallel processors data and instruction memory, and controlling when it starts and stops.
 
-For someone trying to learn how a GPU works, I recommend starting with tiny_gpu and smol_gpu, both great resources which inspired my to begin my design on my parallel processor, which grew through many iterations before becoming what it is now. I will omit from a basic introduction to GPU architecture, instead diving into my design in particular, but to the interested person I suggest the two resources mentioned before: tiny_gpu and smol_gpu.
+For someone trying to learn how a GPU works, I recommend starting with tiny_gpu and smol_gpu, both great resources which inspired me to begin my design on my parallel processor, which grew through many iterations before becoming what it is now. I will omit from a basic introduction to GPU architecture, instead diving into my design in particular, but to the interested person I suggest the two resources mentioned before: tiny_gpu and smol_gpu.
+## Getting Started
 
-## Terminology Note
-Before diving in, there are many different sources out there that call different components of the GPU different names, with NVIDIA being one of the more popular. I will define what each terminology means to me, as taken from some sources, but for those more familiar with NVIDIA terminology here is a quick comparison table. One thing to note is that although I use the term lane instead of thread, I still use SIMT (Single Instruction, Multiple Thread) due to it's prevalence and recent increase of usage over the old term SIMD (Single Instruction, Multiple Data).
-| My Design | NVIDIA Equivalent |
-|------|-------|
-| Lane | Thread |
-| Warps | Warp |
-| Core | Streaming Multiprocessor (SM) |
+### Clone
+git clone https://github.com/Cole-Codemann/SIMT-GPU-Core.git
 
-## Quick Specs Summary (WiP)
+### Simulation (Single Core)
+1. Create new Vivado project
+2. Add all files from `rtl/src/`
+3. Add testbench from `rtl/tb/` (use `GPU_top_tb.sv` for full core verification)
+4. Run behavioral simulation
+
+### Hardware Build
+1. Create new Vivado project targeting `xc7k325tffg900-2`
+2. Import block design from `platform/vivado/GPU_Design.bd`
+3. Add constraints from `platform/vivado/*.xdc`
+4. Set `top.sv` as top module
+5. Generate HDL wrapper
+6. Run synthesis → implementation → generate bitstream
+7. Export hardware (.xsa) to Vitis for firmware development
+
+## Requirements
+- **Vivado 2025.2**
+- **Vitis 2025.2** (for MicroBlaze firmware)
+- **Digilent Genesys 2** (Kintex-7) for hardware deployment
+
+Developed and tested on 2025.2 only. Older versions may not support MicroBlaze V. If you encounter issues, please open an issue.
+
+## Quick Specs Summary
 | Spec | Value |
 |------|-------|
 | Cores | 3 |
@@ -23,12 +41,34 @@ Before diving in, there are many different sources out there that call different
 | Total Lanes | 192 |
 | Word Size | 16-bit |
 | Instruction Size | 16-bit |
-| Registers per Lane | 16 (R0-R16) |
+| Registers per Lane | 16 (R0-R15) |
 | Address spaces per Core | 2 |
 | IMEM per Address space | 4 KB |
 | DMEM per Address space | 32 KB |
 | Target Clock | 100 MHz |
-| Target Board | Digilent Genesys 2 (Artix-7) |
+| Target Board | Digilent Genesys 2 (Kintex-7) |
+| Pipeline Depth | 5-stage (F → D → E → E2 → WB) |
+| Hazard Handling | Scoreboard + 2-level data forwarding |
+| Branch Penalty | 1 cycle |
+
+## Results at a Glance
+| Metric |	Value |
+|------|-----|
+| 16×16 Matrix Multiply | 6,286 cycles / core |
+| Multi-core Scaling (3 cores) | 2.83× (94.3% efficiency) |
+| Peak ALU Throughput | 1,596 MIOPS (99.8% of theoretical) |
+| Memory BW (concurrent) | 709 MB/s |
+| Memory BW (sequential) | 172 MB/s |  
+
+All three benchmark kernels are memory-bound. Detailed analysis is in the Performance and Roofline sections.
+
+## Terminology Note
+Before diving in, there are many different sources out there that call different components of the GPU different names, with NVIDIA being one of the more popular. I will define what each terminology means to me, as taken from some sources, but for those more familiar with NVIDIA terminology here is a quick comparison table. One thing to note is that although I use the term lane instead of thread, I still use SIMT (Single Instruction, Multiple Thread) due to it's prevalence and recent increase of usage over the old term SIMD (Single Instruction, Multiple Data).
+| My Design | NVIDIA Equivalent |
+|------|-------|
+| Lane | Thread |
+| Warps | Warp |
+| Core | Streaming Multiprocessor (SM) |
 
 ### High Level - Parallel architecture at many levels
 There are many layers of parallelization at play in a GPU design, and the terminology between threads, warps, and cores lack universal meaning between companies/architectures, so I will explain how each of these are defined in my design and how each provides a level of parallel abstraction. 
@@ -39,18 +79,18 @@ A lane, however, has no "autonomy"; 16 lanes are controlled by a single **warp**
 
 ![Diagram](./images/warp.drawio.png)
 
+Each warp executes a 5-stage pipeline: FETCH → DECODE → EXE → EXE2 → WB. The first three stages are standard: fetch the instruction, decode control signals and read registers, execute in the ALU. The EXE2 stage exists to break what would otherwise be the critical timing path: the ALU output (purely combinational across 16 parallel lanes, including 16 multipliers) feeds through a writeback mux and NZP flag derivation before reaching the register file write port. At 100 MHz on Kintex-7, this path does not close in a single cycle. EXE2 registers the ALU result, and WB writes it back, splitting the path into two short stages rather than one long one. To keep the pipeline fed despite this depth, the warp implements both scoreboarding and two-level data forwarding. The scoreboard tracks in-flight destination registers and NZP flag updates, stalling decode when a source operand isn't ready yet. Data forwarding from both EXE2 and WB back to decode resolves most dependencies without stalling, with back-to-back dependencies stalling only one clock cycle, a latency that warp scheduling can typically hide.
+
 While each warp acts as a stand-alone processor in most control aspects, there are some resources they have to share, this is due to the fact that four warps coexist in a single core. Most importantly, these warps share a common ALU, meaning all additions, subtractions, multiplications, etc. need to be scheduled since only one warp has access to it at a time (This is one of the larger differences between my current design and "realer" GPU's who have many different computational resources that are shared such as FPUs, MACs, etc... See section "Future Work" for how this is a goal to implement. In addition to the ALU, all the warps share a memory controller, which stands between the warps and the DMEM bank, scheduling and performing all reads and writes for the warps. The inclusion of the warps allow for maximized usage of the more bottlenecked and/or hardware intensive blocks while allowing each warp to step through their other instructions in parallel, increasing throughput substantially. Below is a simplified representation of how each component interfaces between eachother.
 
 ![Diagram](./images/singlecore.drawio.png)
 
-Finally, we take another step backwards; All together, the 4 warps, memory controller, ALU, and warp scheduled make up a single **core**. Each core is directed towards it's own data memory and instruction memory, which in this case is designed as a ping-pong buffer, which will be talked about later. The Artix-7 board is capable of containing three unique cores, each with their own address spaces to work out of. The host, a MicroBlaze V processor, can directly control the reset signal of each core and monitor their "done" signals. Additionally, the MicroBlaze V works with a DMA Engine to transfer data memory between their DMEM space and the DDR3 memory, allowing for high speed operational interface. Below we can again see a simplified demonstration of how these three cores are all maintained by the single host and DMA
+Finally, we take another step backwards; All together, the 4 warps, memory controller, ALU, and warp scheduled make up a single **core**. Each core is directed towards it's own data memory and instruction memory, which in this case is designed as a ping-pong buffer, which will be talked about later. The Kintex-7 board is capable of containing three unique cores, each with their own address spaces to work out of. The host, a MicroBlaze V processor, can directly control the reset signal of each core and monitor their "done" signals. Additionally, the MicroBlaze V works with a DMA Engine to transfer data memory between their DMEM space and the DDR3 memory, allowing for high speed operational interface. Below we can again see a simplified demonstration of how these three cores are all maintained by the single host and DMA
 
 ![Diagram](./images/3core.drawio.png)
 
 ### ISA
-WiP - Rough Draft: Talk about reserved registers, need to double check the ISA here.
-
-Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture/ Further SoC inegration, I chose a relatively simple 16-bit word, 16 bit instruction set, seen below:
+Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture/ Further SoC integration, I chose a relatively simple 16-bit word, 16 bit instruction set, seen below:
 
 
 | Opcode | Mnemonic | Encoding | Description |
@@ -77,15 +117,15 @@ Each instruction is passed into IMEM and given to every warp in the core. In ord
 - `imm[7:0]` - 8-bit immediate (for CONST, BRnzp)
 - `nzp[2:0]` - Branch condition flags (negative/zero/positive)
 
-The DMEM address space seen by the core is 14 bits wide.
-There are three special registers in each lane:
-R0 = Always 0
-R1 = Lane ID
-R2 = Warp ID
+The DMEM address space seen by the core is 14 bits wide. The concurrent instructions require that lane 0's address be aligned to a 16-word boundary; lane N then accesses base+N, where the low 4 address bits are derived from the lane ID. This constraint lets the memory controller service all 16 lanes in exactly 2 BRAM cycles (one for lanes 0–7, one for lanes 8–15) instead of up to 16 sequential accesses.  
+There are three special registers in each lane:  
+R0 = Always 0  
+R1 = Lane ID  
+R2 = Warp ID  
 
 Utilizing the Lane and Warp ID is the key to having a single program address a range of address space across various warps and lanes.
 
-All arithmetic operations are applied to every valid lane within the warp. However, with relatively simple masking applied through the software, operations done on any abitrary number of lanes is easy to accomplish.
+All arithmetic operations are applied to every valid lane within the warp. However, with relatively simple masking applied through the software, operations done on any arbitrary number of lanes is easy to accomplish.
 
 ## Divergence
 Whereas a classic CPU has a straightforward idea of branching, and changing PC depending on conditional tests, a SIMT processor has more complication to it, due to the simple question "what if some lanes meet the condition to branch, but others don't?". There are many unique approaches to this problem, I decided to implement my own slightly modified design involving NZP flags, stacked masks, and conditional branching. 
@@ -96,20 +136,21 @@ The CMP, BRnzp, and SYNC instruction carry all the weight of controlling the flo
 
 Some nuances for this design include the choice to not add the mask stack when an unconditional branch has all lanes taking the branch, typically done by allowing a branch of the n, z, or p flags are set: nzp = '111'. This allows for programmers to jump around their instruction count freely using unconditional branching (essentially, a jump instruction) without fear of overflowing the mask stack. Additionally, a programmer is able to apply a mask without jumping to a new PC at all, by setting the lower 8 bits of the BRnzp instruction to all 0's, the processor never adds to it's PC and steps forward normally, with the new mask applied.
 
-## Memory Controllers
-The next hurdle to overcome, beyond the scope of a single SIMT, was to have our hardware determine how to allocate shared resources between each warp. Starting with the memory controller, this is a major bottleneck for any processor design, even with all data being preloaded into allocated BRAM by the host to enable fast read/write times. 
+## Memory Controller
 
-To start with the warps side, when a memory request is made from a warp, it signals out to the memory controller whether it needs a load or read performed, and whether that request is concurrent or not (more into this shortly). The warp will hold this signal high until the memory controller pulses an acknoledgement, at which time the warp knows it's request has been read. The warp will then hold the data in the EXE until the memory controller sends another signal, signifying it's finished the request. In the case of a read request, this signal acts as a 'valid' pulse which the warp will recognize and store the data from the memory controller into it's EXE2 register, continuing the pipeline. 
+All four warps in a core share a single memory controller that arbitrates access to DMEM. When a warp issues a load or store, it holds the request signal high until the controller acknowledges it and enqueues the operation into a FIFO. The warp's pipeline stalls until the controller signals completion. For loads, this also delivers the read data back into the pipeline.
 
-I implemented two modes of read/write instructions for the warps to use depending on use case when interfacing with the memory controller: concurrent and non-concurrent. Given 16 lanes per warp, meaning 16 unique word read/writes across any range of memory space, the non-concurrent instruction performs close to how one might expect; The memory controller goes to the targeted memory address for each unmasked lane and performs the operation needed there, whether that's writing data from another register in that lane, or reading the value in memory which is stores locally until finished and ready to present back to the warp. This, however, involves up to 16 unique memory accesses. This revealed to be a major bottleneck in almost every benchmark operation tested.
+The controller supports two access modes:
 
-After observing this benchmark, I created two more instructions for concurrent read and write operations. The thought process here is that host will present words concurrently in the memory space for many of the operations faced, from matrix multiplication, to most types of vector math. I therefore widened the BRAM port to 8 words and created the concurrent instructions to follow the condition that each lane must be filled with the address in lane 0 plus targeted lane id. In practice this looks similar to copying over a 16 word wide vector starting an the memory address in lane 0. This allows for memory operations to be performed in 2 operations instead of 16, significantly opening the bottleneck of operation, especially for initial reads which are typically well-ordered by the host.
+Sequential (LDR/STR): The controller iterates through each unmasked lane one at a time, issuing a separate BRAM access per lane. In the worst case this is 16 serial memory operations for a single instruction, and it was the dominant bottleneck in early benchmarking.
+
+Concurrent (LDC/STRC): All 16 lanes are serviced in exactly 2 BRAM cycles by exploiting the 128-bit (8-word) port width; One cycle for lanes 0–7, one for lanes 8–15. The constraint is that lane 0's address must be aligned to a 16-word boundary, with lane N accessing base+N. This maps naturally to vector loads and column/row accesses in matrix operations. Measured bandwidth improved roughly 4× over sequential access for well-ordered patterns (709 MB/s concurrent vs. 172 MB/s sequential).
 
 ## ALU Controller
 The ALU controller is responsible for ensuring fair and clear usage of the ALU lanes, a single block of hardware in our case. The controller maintains fine-course warp scheduling with round-robin arbitration. This hands off access between the warps by clock cycle depending on when they need to perform a computation, and doesn't allow for a single warp to run consecutively when another is waiting for access. 
 
 ## MicroBlaze V and SoC Implementation
-The MicroBlaze V (MBV) acts as the host of the system, and is communicated to via the Vitis suite, allowing for direct writing to the host without needing to reprogram the full FPGA. The MBV is capable of directly writing to and from the Data and Instruction memory spaces of the GPU via AXI *FIGURE OUT WHAT WORD GOES HERE* that connects it. The process of directly reading and writing, especially on the large address space that holds the data memory, is very slow for the MBV to do directly, which is why the DMA was created and is primarily responsible.
+The MicroBlaze V (MBV) acts as the host of the system, and is communicated to via the Vitis suite, allowing for direct writing to the host without needing to reprogram the full FPGA. The MBV is capable of directly writing to and from the Data and Instruction memory spaces of the GPU via AXI interface that connects it. The process of directly reading and writing, especially on the large address space that holds the data memory, is very slow for the MBV to do directly, which is why the DMA was created and is primarily responsible.
 
 Currently, on initialization, the MBV loads the DDR3 space with instruction sets corresponding to commonly used program; in my case, I have three operations loaded and used as my primary benchmark measures. The MBV holds the addresses and size of these instructions and can pass them to the DMA to load into the instruction space of any of the cores. Similarly, the DMA is controlled by the MBV to read and write to the data memory space of each of the GPU cores in order to maintain high core utilization. 
 
@@ -184,16 +225,35 @@ int main(void) {
 
 A more complete program involving multiple cores, alternating address spaces, and repeated operations can be found in the repo.
 
-## Project structure (directory break down)
-WiP: Finalizing Directory.
+## Project structure
+```
+SIMD-GPU-Core/  
+├── README.md  
+│  
+├── rtl/                    # Everything needed to simulate single-core; Non-vendor specific HDL  
+│   ├── src/  
+│   │   └── *.sv  
+│   └── tb/                   
+│       └── *_tb.sv          
+│
+└── platform/               # For programming board + multicore setup  
+    ├── vivado/  
+    │   ├── GPU_Design.bd  
+    │   ├── GPU_Design_wrapper.v  
+    │   └── *.xdc  
+    └── vitis/  
+        ├── Example program  
+        │   ├── main.c  
+        │   ├── main.h  
+        │   ├── kernel_library.c  
+        │   └── kernel_library.h  
+        └── More programs...     
+```
 
 ## Simulation
-Because this project was designed and built with a board in mind (the Artix-7), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. 
+Because this project was designed and built with a board in mind (the Kintex-7), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. Note: Vivado simulation is required, SystemVerilog usage is not compatible on iVerilog.
 
-For those who do have access to an Artix-7 board I highly encourage running the full programs onto the MicroBlaze. For those who do not, I hope the simulation of a single core running a matrix multiplcation is interesting enough to sate you. 
-
-### Make File
-WiP: As name suggests, have the Make file.
+For those who do have access to an Kintex-7 board I highly encourage running the full programs onto the MicroBlaze. For those who do not, I hope the simulation of a single core running a matrix multiplcation is interesting enough to sate you. 
 
 ### Performance
 Here are some tangible results of common parallel workloads, when ran on one of my cores.
@@ -212,10 +272,12 @@ Multi-core scaling was measured by running the same matmul kernel across 1–3 c
 | 2 | 6,697 | 16,384 | 1.93× |
 | 3 | 6,881 | 24,576 | 2.83× |
 
-The near-linear scaling comes from each core having its own DMEM and the CDMA being fast enough to keep all three fed without contention. This is a great sign!
+The near-linear scaling comes from each core having its own DMEM and the CDMA being fast enough to keep all three fed without contention.
 
 ### Roofline Analysis
-I performed some roofline analysis to see the limits of my processor design. A Roofline model plots a kernel's throughput against its operational intensity (OI) — the ratio of compute operations to bytes of memory moved. Two ceilings define the upper bound: a flat compute ceiling (how fast the ALU can work) and a sloped memory bandwidth ceiling (how fast data moves in and out). Where they intersect is the ridge point; kernels below the ridge are memory-bound, kernels above are compute-bound.
+I performed some roofline analysis to see the limits of my processor design. A Roofline model plots a kernel's throughput against its operational intensity (OI) — the ratio of compute operations to bytes of memory moved. Two ceilings define the upper bound: a flat compute ceiling (how fast the ALU can work) and a sloped memory bandwidth ceiling (how fast data moves in and out). Where they intersect is the ridge point; kernels below the ridge are memory-bound, kernels above are compute-bound. The three benchmark kernels and several synthetic probes are plotted against both bandwidth ceilings below.
+
+![Diagram](./images/roofline_graph.png)
 
 Ceilings were measured empirically on hardware:
 
@@ -236,10 +298,7 @@ All three benchmark kernels fall below the concurrent ridge point, making them m
 | Exclusive Prefix Scan | 0.189 | 55 | 291 | Memory |
 | 1D Stencil | 0.250 | 64 | 259 | Memory |
 
-This is expected — with a single shared ALU and wide 128-bit concurrent memory access, the compute ceiling is high relative to what these kernels demand, but they can't move data fast enough to reach it. The concurrent memory instructions (LDC/STRC) were a direct response to early benchmarking, improving memory throughput roughly 4× over sequential access for well-ordered patterns.
-
-A more thorough roofline analysis with plots and detailed methodology is covered in the accompanying design report, not included in this repo.
-
+This is expected, with a single shared ALU and wide 128-bit concurrent memory access, the compute ceiling is high relative to what these kernels demand, but they can't move data fast enough to reach it. The concurrent memory instructions (LDC/STRC) were a direct response to early benchmarking, improving memory throughput roughly 4× over sequential access for well-ordered patterns.
 
 ### Educational: Interesting Timing Problems
 For educational reasons, I wanted to talk briefly about two of the more interesting examples of timing problems I ran into during the development of this project, read only if interested:
@@ -259,8 +318,8 @@ My inspiration for starting this project was heavily taken from these two very e
 
 The architecture itself is a modified variant of [RISC-V](https://github.com/riscv)
 
-## Roadmap / Limitations (Talk about how this is still limited in these ways)
-There is still a lot of work to be done around the GPU itself. As a whole I want to make the GPU itself more "realistic" and faster, which is a drive for many of my future goals
+## Roadmap / Limitations
+There is still a lot of work to be done around the GPU itself. As a whole I want to make the GPU itself more "realistic" and faster, which is a drive for many of my future goals.
 
 - [ ] Add Floating Point Unit
 - [ ] Pipeline arithmetic processes
@@ -270,3 +329,9 @@ There is still a lot of work to be done around the GPU itself. As a whole I want
 - [ ] Move to 32 bit words and instructions.
 - [ ] Build as assembler to allow easier programming.
 - [ ] Consolidate concurrent and non-concurrent memory instructions
+
+## AI Usage
+This project was created with the help of AI in some tasks, primarily in: Writing in-line comments, writing C code, writing repetitive or "simple" HDL, aid in debugging, and learning new software. Everything AI produced was double checked by me for correctness, and special effort was made to avoid AI for design/ architectural decisions, since that was a major learning point of the project and I wanted successes and failures on that front to be made by me.
+
+## License
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
