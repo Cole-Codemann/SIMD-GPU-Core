@@ -13,7 +13,7 @@ For hardware:
 1. Create new Vivado project targeting xc7k325tffg900-2
 2. Import block design from `platform/vivado/GPU_Design.bd`
 3. Add constraints from `platform/vivado/*.xdc`
-4. Set XXXXX
+4. Set top.sv as top module.
 5. Generate HDL wrapper, run synthesis, implementation, generate bitstream
    
 ## Requirements
