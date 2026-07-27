@@ -58,7 +58,8 @@ Developed and tested on 2025.2 only. Older versions may not support MicroBlaze V
 | Multi-core Scaling (3 cores) | 2.83× (94.3% efficiency) |
 | Peak ALU Throughput | 1,596 MIOPS (99.8% of theoretical) |
 | Memory BW (concurrent) | 709 MB/s |
-| Memory BW (sequential) | 172 MB/s |
+| Memory BW (sequential) | 172 MB/s |  
+
 All three benchmark kernels are memory-bound. Detailed analysis is in the Performance and Roofline sections.
 
 ## Terminology Note
