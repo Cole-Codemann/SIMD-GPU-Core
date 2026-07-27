@@ -184,8 +184,30 @@ int main(void) {
 
 A more complete program involving multiple cores, alternating address spaces, and repeated operations can be found in the repo.
 
-## Project structure (directory break down)
-WiP: Finalizing Directory.
+## Project structure
+```
+SIMD-GPU-Core/  
+├── README.md  
+│  
+├── rtl/                    # Everything needed to simulate single-core  
+│   ├── src/  
+│   │   └── *.sv  
+│   └── tb/                   
+│       └── *_tb.sv          
+│
+└── platform/               # For programming board + multicore setup  
+    ├── vivado/  
+    │   ├── GPU_Design.bd  
+    │   ├── GPU_Design_wrapper.v  
+    │   └── *.xdc  
+    └── vitis/  
+        ├── Example program  
+        │   ├── main.c  
+        │   ├── main.h  
+        │   ├── kernel_library.c  
+        │   └── kernel_library.h  
+        └── More programs...     
+```
 
 ## Simulation
 Because this project was designed and built with a board in mind (the Artix-7), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. 
@@ -259,7 +281,7 @@ My inspiration for starting this project was heavily taken from these two very e
 
 The architecture itself is a modified variant of [RISC-V](https://github.com/riscv)
 
-## Roadmap / Limitations (Talk about how this is still limited in these ways)
+## Roadmap / Limitations (Talk about how this is still limited in these ways) 
 There is still a lot of work to be done around the GPU itself. As a whole I want to make the GPU itself more "realistic" and faster, which is a drive for many of my future goals
 
 - [ ] Add Floating Point Unit
