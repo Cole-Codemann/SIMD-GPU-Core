@@ -6,6 +6,23 @@ The purpose of this project was to further my own understanding of parallel proc
 
 For someone trying to learn how a GPU works, I recommend starting with tiny_gpu and smol_gpu, both great resources which inspired my to begin my design on my parallel processor, which grew through many iterations before becoming what it is now. I will omit from a basic introduction to GPU architecture, instead diving into my design in particular, but to the interested person I suggest the two resources mentioned before: tiny_gpu and smol_gpu.
 
+## Getting Started
+For simulation of single core, load all files from rtl/src into Vivado then pick which test bench to run (for full verification of core, use GPU_top_tb.sv).
+
+For hardware:
+1. Create new Vivado project targeting xc7k325tffg900-2
+2. Import block design from `platform/vivado/GPU_Design.bd`
+3. Add constraints from `platform/vivado/*.xdc`
+4. Set XXXXX
+5. Generate HDL wrapper, run synthesis, implementation, generate bitstream
+   
+## Requirements
+- **Vivado 2025.2** (developed with; older versions may not support MicroBlaze V)
+- **Vitis 2025.2**
+- Digilent Genesys 2 board (Kintex-7)
+
+Compatibility with other versions is unknown. If you encounter issues, please open an issue.
+
 ## Terminology Note
 Before diving in, there are many different sources out there that call different components of the GPU different names, with NVIDIA being one of the more popular. I will define what each terminology means to me, as taken from some sources, but for those more familiar with NVIDIA terminology here is a quick comparison table. One thing to note is that although I use the term lane instead of thread, I still use SIMT (Single Instruction, Multiple Thread) due to it's prevalence and recent increase of usage over the old term SIMD (Single Instruction, Multiple Data).
 | My Design | NVIDIA Equivalent |
@@ -287,3 +304,9 @@ There is still a lot of work to be done around the GPU itself. As a whole I want
 - [ ] Move to 32 bit words and instructions.
 - [ ] Build as assembler to allow easier programming.
 - [ ] Consolidate concurrent and non-concurrent memory instructions
+
+## AI Usage
+This project was created with the help of AI in some tasks, primarily in: Writing in-line comments, writing C code, writing repetitive or "simple" HDL, aid in debugging, and learning new software. Everything AI produced was double checked by me for correctness, and special effort was made to avoid AI for design/ architectural decisions, since that was a major learning point of the project and I wanted successes and failures on that front to be made by me.
+
+## License
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
