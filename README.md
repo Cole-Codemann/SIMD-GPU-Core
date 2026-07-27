@@ -279,17 +279,6 @@ I performed some roofline analysis to see the limits of my processor design. A R
 
 ![Diagram](./images/roofline_graph.png)
 
-Ceilings were measured empirically on hardware:
-
-| Metric | Value |
-|--------|-------|
-| Compute ceiling (useful ops) | 1,064 MIOPS/core |
-| Compute ceiling (total, incl. overhead) | 1,596 MIOPS/core |
-| Theoretical max | 1,600 MIOPS (16 ops/cycle @ 100 MHz) |
-| Memory BW (concurrent) | 709 MB/s |
-| Memory BW (sequential) | 172 MB/s |
-True Memory BW depends on operation composition of concurrent versus sequential memory accesses.
-
 All three benchmark kernels fall below the concurrent ridge point, making them memory-bound:
 
 | Kernel | Ops/Byte (OI) | MIOPS | MB/s | Bottleneck |
