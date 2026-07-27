@@ -1,5 +1,5 @@
 # Tri-Core GPGPU SoC With Microblaze-V Host 
-An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Artix-7 board.
+An educational custom 3-core parallel processor in SystemVerilog, controlled by MicroBlaze V host and placed on Kintex-7 board.
 
 ## Introduction
 The purpose of this project was to further my own understanding of parallel processors and familiarize myself with new tools in FPGA design, such as block diagram to instantiate hard IPs like the MicroBlaze V, DMA Engines, DDR3 Memory, AXI controllers, etc. Additionally to practice the development of firmware to the host controller in charge of writing to the parallel processors data and instruction memory, and controlling when it starts and stops.
@@ -14,7 +14,7 @@ Before diving in, there are many different sources out there that call different
 | Warps | Warp |
 | Core | Streaming Multiprocessor (SM) |
 
-## Quick Specs Summary (WiP)
+## Quick Specs Summary
 | Spec | Value |
 |------|-------|
 | Cores | 3 |
@@ -23,12 +23,12 @@ Before diving in, there are many different sources out there that call different
 | Total Lanes | 192 |
 | Word Size | 16-bit |
 | Instruction Size | 16-bit |
-| Registers per Lane | 16 (R0-R16) |
+| Registers per Lane | 16 (R0-R15) |
 | Address spaces per Core | 2 |
 | IMEM per Address space | 4 KB |
 | DMEM per Address space | 32 KB |
 | Target Clock | 100 MHz |
-| Target Board | Digilent Genesys 2 (Artix-7) |
+| Target Board | Digilent Genesys 2 (Kintex-7) |
 
 ### High Level - Parallel architecture at many levels
 There are many layers of parallelization at play in a GPU design, and the terminology between threads, warps, and cores lack universal meaning between companies/architectures, so I will explain how each of these are defined in my design and how each provides a level of parallel abstraction. 
@@ -43,13 +43,11 @@ While each warp acts as a stand-alone processor in most control aspects, there a
 
 ![Diagram](./images/singlecore.drawio.png)
 
-Finally, we take another step backwards; All together, the 4 warps, memory controller, ALU, and warp scheduled make up a single **core**. Each core is directed towards it's own data memory and instruction memory, which in this case is designed as a ping-pong buffer, which will be talked about later. The Artix-7 board is capable of containing three unique cores, each with their own address spaces to work out of. The host, a MicroBlaze V processor, can directly control the reset signal of each core and monitor their "done" signals. Additionally, the MicroBlaze V works with a DMA Engine to transfer data memory between their DMEM space and the DDR3 memory, allowing for high speed operational interface. Below we can again see a simplified demonstration of how these three cores are all maintained by the single host and DMA
+Finally, we take another step backwards; All together, the 4 warps, memory controller, ALU, and warp scheduled make up a single **core**. Each core is directed towards it's own data memory and instruction memory, which in this case is designed as a ping-pong buffer, which will be talked about later. The Kintex-7 board is capable of containing three unique cores, each with their own address spaces to work out of. The host, a MicroBlaze V processor, can directly control the reset signal of each core and monitor their "done" signals. Additionally, the MicroBlaze V works with a DMA Engine to transfer data memory between their DMEM space and the DDR3 memory, allowing for high speed operational interface. Below we can again see a simplified demonstration of how these three cores are all maintained by the single host and DMA
 
 ![Diagram](./images/3core.drawio.png)
 
 ### ISA
-WiP - Rough Draft: Talk about reserved registers, need to double check the ISA here.
-
 Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture/ Further SoC inegration, I chose a relatively simple 16-bit word, 16 bit instruction set, seen below:
 
 
@@ -77,11 +75,11 @@ Each instruction is passed into IMEM and given to every warp in the core. In ord
 - `imm[7:0]` - 8-bit immediate (for CONST, BRnzp)
 - `nzp[2:0]` - Branch condition flags (negative/zero/positive)
 
-The DMEM address space seen by the core is 14 bits wide.
-There are three special registers in each lane:
-R0 = Always 0
-R1 = Lane ID
-R2 = Warp ID
+The DMEM address space seen by the core is 14 bits wide.  
+There are three special registers in each lane:  
+R0 = Always 0  
+R1 = Lane ID  
+R2 = Warp ID  
 
 Utilizing the Lane and Warp ID is the key to having a single program address a range of address space across various warps and lanes.
 
@@ -109,7 +107,7 @@ After observing this benchmark, I created two more instructions for concurrent r
 The ALU controller is responsible for ensuring fair and clear usage of the ALU lanes, a single block of hardware in our case. The controller maintains fine-course warp scheduling with round-robin arbitration. This hands off access between the warps by clock cycle depending on when they need to perform a computation, and doesn't allow for a single warp to run consecutively when another is waiting for access. 
 
 ## MicroBlaze V and SoC Implementation
-The MicroBlaze V (MBV) acts as the host of the system, and is communicated to via the Vitis suite, allowing for direct writing to the host without needing to reprogram the full FPGA. The MBV is capable of directly writing to and from the Data and Instruction memory spaces of the GPU via AXI *FIGURE OUT WHAT WORD GOES HERE* that connects it. The process of directly reading and writing, especially on the large address space that holds the data memory, is very slow for the MBV to do directly, which is why the DMA was created and is primarily responsible.
+The MicroBlaze V (MBV) acts as the host of the system, and is communicated to via the Vitis suite, allowing for direct writing to the host without needing to reprogram the full FPGA. The MBV is capable of directly writing to and from the Data and Instruction memory spaces of the GPU via AXI interface that connects it. The process of directly reading and writing, especially on the large address space that holds the data memory, is very slow for the MBV to do directly, which is why the DMA was created and is primarily responsible.
 
 Currently, on initialization, the MBV loads the DDR3 space with instruction sets corresponding to commonly used program; in my case, I have three operations loaded and used as my primary benchmark measures. The MBV holds the addresses and size of these instructions and can pass them to the DMA to load into the instruction space of any of the cores. Similarly, the DMA is controlled by the MBV to read and write to the data memory space of each of the GPU cores in order to maintain high core utilization. 
 
@@ -210,12 +208,9 @@ SIMD-GPU-Core/
 ```
 
 ## Simulation
-Because this project was designed and built with a board in mind (the Artix-7), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. 
+Because this project was designed and built with a board in mind (the Kintex-7), high level simulations were not made and instead tested on the board itself. There are however, multiple test benches for the individual modules provided in the files, at the highest level simulating a full core running a matrix multiplication algorithm. Note: Vivado simulation is required, SystemVerilog usage is not compatible on iVerilog.
 
-For those who do have access to an Artix-7 board I highly encourage running the full programs onto the MicroBlaze. For those who do not, I hope the simulation of a single core running a matrix multiplcation is interesting enough to sate you. 
-
-### Make File
-WiP: As name suggests, have the Make file.
+For those who do have access to an Kintex-7 board I highly encourage running the full programs onto the MicroBlaze. For those who do not, I hope the simulation of a single core running a matrix multiplcation is interesting enough to sate you. 
 
 ### Performance
 Here are some tangible results of common parallel workloads, when ran on one of my cores.
@@ -281,8 +276,8 @@ My inspiration for starting this project was heavily taken from these two very e
 
 The architecture itself is a modified variant of [RISC-V](https://github.com/riscv)
 
-## Roadmap / Limitations (Talk about how this is still limited in these ways) 
-There is still a lot of work to be done around the GPU itself. As a whole I want to make the GPU itself more "realistic" and faster, which is a drive for many of my future goals
+## Roadmap / Limitations
+There is still a lot of work to be done around the GPU itself. As a whole I want to make the GPU itself more "realistic" and faster, which is a drive for many of my future goals.
 
 - [ ] Add Floating Point Unit
 - [ ] Pipeline arithmetic processes
