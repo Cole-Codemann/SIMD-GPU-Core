@@ -4,24 +4,33 @@ An educational custom 3-core parallel processor in SystemVerilog, controlled by 
 ## Introduction
 The purpose of this project was to further my own understanding of parallel processors and familiarize myself with new tools in FPGA design, such as block diagram to instantiate hard IPs like the MicroBlaze V, DMA Engines, DDR3 Memory, AXI controllers, etc. Additionally to practice the development of firmware to the host controller in charge of writing to the parallel processors data and instruction memory, and controlling when it starts and stops.
 
-For someone trying to learn how a GPU works, I recommend starting with tiny_gpu and smol_gpu, both great resources which inspired my to begin my design on my parallel processor, which grew through many iterations before becoming what it is now. I will omit from a basic introduction to GPU architecture, instead diving into my design in particular, but to the interested person I suggest the two resources mentioned before: tiny_gpu and smol_gpu.
-
+For someone trying to learn how a GPU works, I recommend starting with tiny_gpu and smol_gpu, both great resources which inspired me to begin my design on my parallel processor, which grew through many iterations before becoming what it is now. I will omit from a basic introduction to GPU architecture, instead diving into my design in particular, but to the interested person I suggest the two resources mentioned before: tiny_gpu and smol_gpu.
 ## Getting Started
-For simulation of single core, load all files from rtl/src into Vivado then pick which test bench to run (for full verification of core, use GPU_top_tb.sv).
 
-For hardware:
-1. Create new Vivado project targeting xc7k325tffg900-2
+### Clone
+git clone https://github.com/Cole-Codemann/SIMD-GPU-Core.git
+
+### Simulation (Single Core)
+1. Create new Vivado project
+2. Add all files from `rtl/src/`
+3. Add testbench from `rtl/tb/` (use `GPU_top_tb.sv` for full core verification)
+4. Run behavioral simulation
+
+### Hardware Build
+1. Create new Vivado project targeting `xc7k325tffg900-2`
 2. Import block design from `platform/vivado/GPU_Design.bd`
 3. Add constraints from `platform/vivado/*.xdc`
-4. Set top.sv as top module.
-5. Generate HDL wrapper, run synthesis, implementation, generate bitstream
-   
-## Requirements
-- **Vivado 2025.2** (developed with; older versions may not support MicroBlaze V)
-- **Vitis 2025.2**
-- Digilent Genesys 2 board (Kintex-7)
+4. Set `top.sv` as top module
+5. Generate HDL wrapper
+6. Run synthesis → implementation → generate bitstream
+7. Export hardware (.xsa) to Vitis for firmware development
 
-Compatibility with other versions is unknown. If you encounter issues, please open an issue.
+## Requirements
+- **Vivado 2025.2**
+- **Vitis 2025.2** (for MicroBlaze firmware)
+- **Digilent Genesys 2** (Kintex-7) for hardware deployment
+
+Developed and tested on 2025.2 only. Older versions may not support MicroBlaze V. If you encounter issues, please open an issue.
 
 ## Terminology Note
 Before diving in, there are many different sources out there that call different components of the GPU different names, with NVIDIA being one of the more popular. I will define what each terminology means to me, as taken from some sources, but for those more familiar with NVIDIA terminology here is a quick comparison table. One thing to note is that although I use the term lane instead of thread, I still use SIMT (Single Instruction, Multiple Thread) due to it's prevalence and recent increase of usage over the old term SIMD (Single Instruction, Multiple Data).
@@ -65,7 +74,7 @@ Finally, we take another step backwards; All together, the 4 warps, memory contr
 ![Diagram](./images/3core.drawio.png)
 
 ### ISA
-Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture/ Further SoC inegration, I chose a relatively simple 16-bit word, 16 bit instruction set, seen below:
+Each instruction is passed into IMEM and given to every warp in the core. In order to focus my time on overall architecture/ Further SoC integration, I chose a relatively simple 16-bit word, 16 bit instruction set, seen below:
 
 
 | Opcode | Mnemonic | Encoding | Description |
@@ -100,7 +109,7 @@ R2 = Warp ID
 
 Utilizing the Lane and Warp ID is the key to having a single program address a range of address space across various warps and lanes.
 
-All arithmetic operations are applied to every valid lane within the warp. However, with relatively simple masking applied through the software, operations done on any abitrary number of lanes is easy to accomplish.
+All arithmetic operations are applied to every valid lane within the warp. However, with relatively simple masking applied through the software, operations done on any arbitrary number of lanes is easy to accomplish.
 
 ## Divergence
 Whereas a classic CPU has a straightforward idea of branching, and changing PC depending on conditional tests, a SIMT processor has more complication to it, due to the simple question "what if some lanes meet the condition to branch, but others don't?". There are many unique approaches to this problem, I decided to implement my own slightly modified design involving NZP flags, stacked masks, and conditional branching. 
@@ -114,7 +123,7 @@ Some nuances for this design include the choice to not add the mask stack when a
 ## Memory Controllers
 The next hurdle to overcome, beyond the scope of a single SIMT, was to have our hardware determine how to allocate shared resources between each warp. Starting with the memory controller, this is a major bottleneck for any processor design, even with all data being preloaded into allocated BRAM by the host to enable fast read/write times. 
 
-To start with the warps side, when a memory request is made from a warp, it signals out to the memory controller whether it needs a load or read performed, and whether that request is concurrent or not (more into this shortly). The warp will hold this signal high until the memory controller pulses an acknoledgement, at which time the warp knows it's request has been read. The warp will then hold the data in the EXE until the memory controller sends another signal, signifying it's finished the request. In the case of a read request, this signal acts as a 'valid' pulse which the warp will recognize and store the data from the memory controller into it's EXE2 register, continuing the pipeline. 
+To start with the warps side, when a memory request is made from a warp, it signals out to the memory controller whether it needs a load or store performed, and whether that request is concurrent or not (more into this shortly). The warp will hold this signal high until the memory controller pulses an acknoledgement, at which time the warp knows it's request has been read. The warp will then hold the data in the EXE until the memory controller sends another signal, signifying it's finished the request. In the case of a read request, this signal acts as a 'valid' pulse which the warp will recognize and store the data from the memory controller into it's EXE2 register, continuing the pipeline. 
 
 I implemented two modes of read/write instructions for the warps to use depending on use case when interfacing with the memory controller: concurrent and non-concurrent. Given 16 lanes per warp, meaning 16 unique word read/writes across any range of memory space, the non-concurrent instruction performs close to how one might expect; The memory controller goes to the targeted memory address for each unmasked lane and performs the operation needed there, whether that's writing data from another register in that lane, or reading the value in memory which is stores locally until finished and ready to present back to the warp. This, however, involves up to 16 unique memory accesses. This revealed to be a major bottleneck in almost every benchmark operation tested.
 
