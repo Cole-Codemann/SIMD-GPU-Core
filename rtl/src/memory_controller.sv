@@ -19,6 +19,7 @@
 //   - lane_mask[warp][lane]=0 means lane is ACTIVE (processed)
 //   - If all lanes masked (lane_mask=FFFF), operation completes immediately
 //──────────────────────────────────────────────────────────────────────────────
+`include "config.vh"
 
 module memory_controller (
     // Inputs
@@ -67,7 +68,7 @@ module memory_controller (
     logic [3:0][3:0] memory_queue;  // [3]=R/W, [2]=Concurrent, [1:0]=WarpID
     logic [1:0]      wr_ptr, rd_ptr;
     logic [1:0]      curr_warp_id;
-    (* mark_debug = "true" *) logic [2:0]      queue_count;
+    `DEBUG logic [2:0]      queue_count;
     logic [3:0]      warp_waiting;
 
     assign curr_warp_id = memory_queue[rd_ptr][1:0];
@@ -234,7 +235,7 @@ module memory_controller (
     assign mem_to_reg_data = mem_to_reg_data_int;
     
     // -- Usage counter
-    (* mark_debug = "true" *) logic [31:0] mem_controller_usage;
+    `MEASURE logic [31:0] mem_controller_usage;
     logic reset_prev;
     always_ff @(posedge clk) begin
         reset_prev <= rst;

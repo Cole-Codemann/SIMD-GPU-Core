@@ -109,7 +109,7 @@ module cu_tb;
                    test_num, signal_name, expected, actual);
             error_count++;
         end else begin
-            $display("[TEST %0d] PASS: %s = %b ✓", test_num, signal_name, actual);
+            $display("[TEST %0d] PASS: %s = %b", test_num, signal_name, actual);
             pass_count++;
         end
     endtask
@@ -125,7 +125,7 @@ module cu_tb;
                    test_num, signal_name, expected, actual);
             error_count++;
         end else begin
-            $display("[TEST %0d] PASS: %s = %h ✓", test_num, signal_name, actual);
+            $display("[TEST %0d] PASS: %s = %h", test_num, signal_name, actual);
             pass_count++;
         end
     endtask
@@ -141,7 +141,7 @@ module cu_tb;
                    test_num, signal_name, expected, actual);
             error_count++;
         end else begin
-            $display("[TEST %0d] PASS: %s = %h ✓", test_num, signal_name, actual);
+            $display("[TEST %0d] PASS: %s = %h", test_num, signal_name, actual);
             pass_count++;
         end
     endtask
@@ -160,9 +160,10 @@ module cu_tb;
     
     // Task: Print test header
     task automatic print_header(input string test_name);
-        $display("\n" + "="*80);
+        $display("");
+        $display("================================================================================");
         $display("TEST %0d: %s", test_num, test_name);
-        $display("="*80);
+        $display("================================================================================");
         test_num++;
     endtask
     
@@ -185,9 +186,11 @@ module cu_tb;
         error_count = 0;
         pass_count = 0;
         
-        $display("\n" + "="*80);
+        $display("");
+        $display("================================================================================");
         $display("CONTROL UNIT TESTBENCH - Comprehensive Verification");
-        $display("="*80 + "\n");
+        $display("================================================================================");
+        $display("");
         
         // Reset
         repeat(3) @(posedge clk);
@@ -517,7 +520,7 @@ module cu_tb;
             $error("Stack pointer changed on empty pop!");
             error_count++;
         end else begin
-            $display("[TEST %0d] PASS: Stack underflow prevented ✓", test_num);
+            $display("[TEST %0d] PASS: Stack underflow prevented", test_num);
             pass_count++;
         end
         
@@ -570,18 +573,21 @@ module cu_tb;
         // =====================================================================
         wait_cycles(5);
         
-        $display("\n" + "="*80);
+        $display("");
+        $display("================================================================================");
         $display("TESTBENCH SUMMARY");
-        $display("="*80);
+        $display("================================================================================");
         $display("Total Tests:    %0d", test_num - 1);
         $display("Checks Passed:  %0d", pass_count);
         $display("Checks Failed:  %0d", error_count);
         $display("Success Rate:   %.1f%%", 100.0 * pass_count / (pass_count + error_count));
         
         if (error_count == 0) begin
-            $display("\n*** ALL TESTS PASSED! *** ✓");
+            $display("");
+            $display("*** ALL TESTS PASSED! ***");
         end else begin
-            $display("\n*** %0d TESTS FAILED ***", error_count);
+            $display("");
+            $display("*** %0d TESTS FAILED ***", error_count);
         end
  
         $finish;

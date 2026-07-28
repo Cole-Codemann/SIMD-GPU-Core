@@ -25,25 +25,27 @@ module cu (
     output logic             done,
     output logic             alu_req_de
 );
+    localparam NOP   = 4'b0000;
+    localparam ADD   = 4'b0011;
+    localparam SUB   = 4'b0100;
+    localparam MUL   = 4'b0101;
+    localparam DIV   = 4'b0110;
+    localparam LD    = 4'b0111;
+    localparam STR   = 4'b1000;
+    localparam IMM   = 4'b1001;
+    localparam CMP   = 4'b1010;
+    localparam BRnzp = 4'b1011;
+    localparam SYNC  = 4'b1100;
+    localparam LDC   = 4'b1101;
+    localparam STRC  = 4'b1110;
+    localparam DONE  = 4'b1111;
     
     assign op = instr[15:12];
     assign rd = instr[11:8];
     assign rs = instr[7:4];
     assign rt = instr[3:0];
     assign bimm = {8'd0, instr[7:0]};
-    
     logic [15:0] mask_in;
-    // Compute mask for current branch instruction
-    always_comb begin
-        mask_in = '1;
-        for (int i = 0; i < 16; i++) begin
-            if ((nzp_flags[i][2] & instr[11]) |
-                (nzp_flags[i][1] & instr[10]) |
-                (nzp_flags[i][0] & instr[9])) begin
-                mask_in[i] = 1'b0;
-            end
-        end
-    end
     
     //Decoding combination block; Determines which control signals
     //should be high given the instruction
@@ -58,55 +60,86 @@ module cu (
         done = 0;
         alu_req_de = 0;
         case(op)
-            4'b0000: regwe = 0; //NOP
-            4'b0011: begin      //ADD
+            NOP: 
+                regwe = 0;
+            ADD: begin
                 regwe = 1;
                 alu_req_de = 1;
                 end
-            4'b0100: begin       //SUB
+            SUB: begin
                 regwe = 1;
                 alu_req_de = 1;
                 end
-            4'b0101: begin        //MUL
+            MUL: begin
                 regwe = 1;
                 alu_req_de = 1;
                 end
-            4'b0110: begin        //DIV
+            DIV: begin
                 regwe = 1; 
                 alu_req_de = 1;
                 end
-            4'b0111: begin      //LD
+            LD: begin
                 regwe = 1;
                 load_request = 1;
                 end
-            4'b1000: store_request = 1; //STR
-            4'b1001: begin      //CONST
+            STR:
+                store_request = 1;
+            IMM: begin 
                 regwe = 1;
                 sel_imm = 1;
                 end
-            4'b1010: begin //CMP
+
+            //Subtraction based comparison instruction
+            CMP: begin
                 set_nzp = 1;
                 alu_req_de = 1;
             end
-            //Note on Branching: If a conditional branch is attempted while the stack of masking (max: 8) 
+
+            //Notes on Branching: If a conditional branch is attempted while the stack of masking (max: 8) 
             //is full, it will be treated as unconditional
-            4'b1011: br = (mask_in != 16'hFFFF); // BRnzp - NOP if no lanes meet condition      
-            4'b1100: regwe = 0; //Sync
-            4'b1101: begin      //LD Concurrent
+            //Additionally, unconditional branches (nzp = 111) do not go to on mask stack
+            BRnzp: 
+                br = (mask_in != 16'hFFFF); // BRnzp - NOP if no lanes meet condition   
+
+            //Sync pops top mask from stack   
+            SYNC: 
+                regwe = 0;
+  
+            //Performs wide load, filling destination register across all threads with consecutive words, starting at address
+            //pointed to by associated register in thread 0
+            LDC: begin
                 regwe = 1;
                 load_request = 1;
                 conc_request = 1;
                 end
-            4'b1110: begin      //STR Concurrent
+            
+            //Follows identical logic to LDC for determining addresses to write to
+            STRC: begin
                 store_request = 1;
                 conc_request = 1;
                 end
-            4'b1111: done = 1;
-            default: regwe = 0; 
+            DONE: 
+                done = 1;
+            default: 
+                regwe = 0; 
         endcase
     end
+    
+    // Masking Logic 
+    // Compute mask for current branch instruction
+    always_comb begin
+        mask_in = '1;
+        for (int i = 0; i < 16; i++) begin
+            if ((nzp_flags[i][2] & instr[11]) |
+                (nzp_flags[i][1] & instr[10]) |
+                (nzp_flags[i][0] & instr[9])) begin
+                mask_in[i] = 1'b0;
+            end
+        end
+    end
 
-    // Masking Logic
+    //Top memory location on stack doesn't actually get read ever, but to check if thats what we are writing to forces additional
+    //logic on timing constrained path
     logic [15:0] stack [0:7];
     logic [3:0]  sp;
 
@@ -117,14 +150,13 @@ module cu (
             sp    <= '0;
             mask  <= 16'h0000;
         end else if (!halt & !scoreboard_stall) begin
-            // Branch: Push mask
-            //If N, Z, and P, don't push mask though.
+            // Branch: Push mask, doesn't occur if unconditional branch is called
             if ((op == 4'b1011) && (instr[11:9] != 3'b111) && (mask_in != 16'hFFFF) && (sp < 4'd8)) begin
                 stack[sp] <= mask_in; 
                 sp   <= sp + 1;
                 mask <= mask | mask_in;
             end 
-            // Sync: Pop mask - compute from remaining entries
+            // Sync: Pop mask - recompute from remaining entries
             else if ((op == 4'b1100) && (sp != '0)) begin
                 stack[sp - 1] <= '0;
                 sp <= sp - 1;

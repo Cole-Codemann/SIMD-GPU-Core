@@ -1,34 +1,32 @@
+`include "config.vh"
+
 // Engineer: Cole Kaufmann
 // Create Date: 03/24/2026 07:01:48 PM
 // Design Name: GPU
 // Module Name: GPU_top
-//
-// DEBUG VERSION: signals marked with (* mark_debug = "true" *) for ILA capture.
-// To revert: comment out the DEBUG block below and uncomment the ORIGINAL block.
 
 module GPU_top(
     input  logic         clk,
     input  logic         reset_in,
 
-    (* mark_debug = "true" *) output logic              GPU_done,
-    //(* mark_debug = "false" *) output logic [3:0]        warp_done_dbg,
-    (* mark_debug = "false" *) output logic [3:0][10:0]   imem_addr,
-    (* mark_debug = "false" *) input  logic [3:0][15:0]  imem_rdata,
+    `MEASURE output logic              GPU_done,
+    `DEBUG output logic [3:0][10:0]   imem_addr,
+    `DEBUG input  logic [3:0][15:0]  imem_rdata,
 
     // Data memory - BRAM Port B
-    (* mark_debug = "false" *) output logic [10:0]  dmem_addr,
-    (* mark_debug = "false" *) output logic [127:0] dmem_wdata,
-    (* mark_debug = "false" *) output logic [15:0]  dmem_wen,
-                              input  logic [127:0] dmem_rdata,
+    `DEBUG output logic [10:0]  dmem_addr,
+    `DEBUG output logic [127:0] dmem_wdata,
+    `DEBUG output logic [15:0]  dmem_wen,
+           input  logic [127:0] dmem_rdata,
     
     // Duration Counter
-    (* mark_debug = "true" *)output logic [31:0] program_duration_count
+    `MEASURE output logic [31:0] program_duration_count
 );
 
     // ── Reset synchronizer ──────────────────────────────────────────────────
     // ─── DEBUG: reset marked for ILA ────────────────────────────────────────
-    (* mark_debug = "true" *) logic reset;
-                              logic reset_meta;
+    `MEASURE logic reset;
+             logic reset_meta;
     // ─── ORIGINAL: ─────────────────────────────────────────────────────────
     // logic reset_meta, reset;
 
@@ -38,17 +36,17 @@ module GPU_top(
     end
 
     // ── Warp Data Buses ─────────────────────────────────────────────────────
-    (* mark_debug = "false" *) logic [3:0][15:0][15:0] warp_data1;
-    (* mark_debug = "false" *) logic [3:0][15:0][15:0] warp_data2;
+    `DEBUG logic [3:0][15:0][15:0] warp_data1;
+    `DEBUG logic [3:0][15:0][15:0] warp_data2;
     logic [3:0][3:0]        warp_alu_op;
     logic [15:0][15:0]      exe_out;
 
     // ── Warp Control ─────────────────────────────────────────────────────────
-    (* mark_debug = "true" *)logic [3:0] alu_req;        // each warp requesting ALU access
-    (* mark_debug = "true" *)logic [3:0] alu_access;     // warp controller granting ALU access
+    `DEBUG logic [3:0] alu_req;        // each warp requesting ALU access
+    `DEBUG logic [3:0] alu_access;     // warp controller granting ALU access
 
     // ─── DEBUG: warp_done marked ───────────────────────────────────────────
-    (* mark_debug = "false" *) logic [3:0] warp_done;
+    `DEBUG logic [3:0] warp_done;
     // ─── ORIGINAL: ─────────────────────────────────────────────────────────
     // logic [3:0] warp_done;
 
@@ -61,23 +59,23 @@ module GPU_top(
 
     // ── Memory Interface ────────────────────────────────────────────────────
     // ─── DEBUG: memory handshake signals marked ────────────────────────────
-    (* mark_debug = "false" *) logic [3:0]        store_requests;
-    (* mark_debug = "false" *) logic [3:0]        load_requests;
-    (* mark_debug = "false" *) logic [3:0]        conc_request;
-    (* mark_debug = "true" *) logic [3:0]        mem_req_done;
-    (* mark_debug = "true" *) logic [3:0]        mem_request_ack;
-                              logic [15:0][15:0] mem_to_reg_data;
-                              logic [3:0][15:0]  lane_mask;
+    `DEBUG logic [3:0]        store_requests;
+    `DEBUG logic [3:0]        load_requests;
+    `DEBUG logic [3:0]        conc_request;
+    `DEBUG logic [3:0]        mem_req_done;
+    `DEBUG logic [3:0]        mem_request_ack;
+           logic [15:0][15:0] mem_to_reg_data;
+           logic [3:0][15:0]  lane_mask;
     
     // ─── Clock Cycle Counting ─────────────────────────────────────────────────────────
     
     logic [3:0] stalled_on_alu, stalled_on_mem, scoreboard_stall;
     logic reset_prev;
-    (* mark_debug = "true" *) logic [3:0][31:0] mem_stall_count;
-    (* mark_debug = "true" *) logic [3:0][31:0] alu_stall_count;
-    (* mark_debug = "true" *) logic [3:0][31:0] scoreboard_stall_count;
-    (* mark_debug = "true" *) logic [3:0][31:0] free_run_count;
-    (* mark_debug = "true" *) logic [31:0] alu_usage;
+    `MEASURE logic [3:0][31:0] mem_stall_count;
+    `MEASURE logic [3:0][31:0] alu_stall_count;
+    `MEASURE logic [3:0][31:0] scoreboard_stall_count;
+    `MEASURE logic [3:0][31:0] free_run_count;
+    `MEASURE logic [31:0] alu_usage;
     
     
     always_ff @(posedge clk) begin

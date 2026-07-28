@@ -2,6 +2,7 @@
 // Handles instruction fetch, decode, and pipeline management for a vector thread group.
 // Pipeline: FETCH -> DECODE -> EXE -> EXE2 -> WB
 // Branch penalty: 1 cycle (bubble inserted after branch)
+`include "config.vh"
 
 module warp #(
     parameter logic [1:0] WARP_ID = 2'd0
@@ -27,7 +28,7 @@ module warp #(
     output logic              scoreboard_stall_out,
     
     input logic  [15:0]       instr_in, 
-    (* mark_debug = "true" *) output logic [10:0]        pc
+    `DEBUG output logic [10:0]        pc
 );
     // --- Signal Declarations ---
     
@@ -38,12 +39,12 @@ module warp #(
     logic        branch_taken;        // Registered version of br for penalty tracking
     logic        insert_bubble;       // Signal to insert NOP after branch
     logic [15:0] bubble_instr;        // NOP instruction (all zeros or actual NOP encoding)
-    (* mark_debug = "false" *) logic [15:0] instr_muxed;         // Instruction after bubble insertion
+    `DEBUG logic [15:0] instr_muxed;         // Instruction after bubble insertion
     
 
     // --- Decode Stage ---
     logic [3:0]  op_de;
-    (* mark_debug = "false" *) logic [3:0]  rs_addr_de, rt_addr_de, rd_addr_de;
+    `DEBUG logic [3:0]  rs_addr_de, rt_addr_de, rd_addr_de;
     logic [15:0] bimm_de;
     logic        regwe_de, sel_imm_de, set_nzp_de;
     logic        store_request_de, load_request_de, conc_request_de;
@@ -53,11 +54,11 @@ module warp #(
     logic        alu_req_de;
 
     // --- Execute Stage ---
-    (* mark_debug = "false" *) logic [3:0]  rd_addr_exe;
+    `DEBUG logic [3:0]  rd_addr_exe;
     logic [15:0] bimm_exe;
     
     logic [3:0]  rs_addr_exe, rt_addr_exe;
-    (* mark_debug = "false" *) logic        regwe_exe,  sel_imm_exe, set_nzp_exe;
+    `DEBUG logic        regwe_exe,  sel_imm_exe, set_nzp_exe;
     logic        mem_ldr_we_exe;
     logic        done_exe;
     logic        alu_req_exe; 
@@ -65,7 +66,7 @@ module warp #(
     // --- Execute 2 Stage ---
     logic [15:0][15:0] exe_out_reg;         // Result from ALU execute
     logic [15:0][15:0] mem_data_reg, rd_data_exe2; //**mem_data_reg not needed anymore
-    (* mark_debug = "false" *) logic        regwe_exe2, sel_imm_exe2, set_nzp_exe2;
+    `DEBUG logic        regwe_exe2, sel_imm_exe2, set_nzp_exe2;
     logic        mem_ldr_we_exe2;
     logic [15:0] bimm_exe2;
     logic [3:0]  rd_addr_exe2;
@@ -84,13 +85,13 @@ module warp #(
     logic [15:0][15:0] rd_data_wb;
 
     // --- NZP Flags & Masking ---
-    (* mark_debug = "false" *) logic [15:0][2:0]  nzp_flags, nzp_flags_next, nzp_flags_true;
+    `DEBUG logic [15:0][2:0]  nzp_flags, nzp_flags_next, nzp_flags_true;
 
     // --- Scoreboard Control ---
-    (* mark_debug = "false" *) logic        scoreboard_stall;
-    (* mark_debug = "false" *) logic [15:0] addrs_not_ready; //Composite one-hot of not ready addresses
-    (* mark_debug = "false" *) logic        nzp_not_ready;  
-    (* mark_debug = "false", MAX_FANOUT = 16 *)     logic        halt;
+    `DEBUG logic        scoreboard_stall;
+    `DEBUG logic [15:0] addrs_not_ready; //Composite one-hot of not ready addresses
+    `DEBUG logic        nzp_not_ready;  
+    `DEBUG (* MAX_FANOUT = 16 *) logic halt;
     
     always_ff @(posedge clk or posedge reset) begin //Currently at most forces a one clock stall, allows for future pipelining additions and easier update to arch.
         if (reset) begin
@@ -179,7 +180,7 @@ module warp #(
         else if (mem_req_done)                 waiting_on_mem <= 0;
         else if (load_request | store_request) waiting_on_mem <= 1;
     end
-        //NEW - Tested once, seems to work
+
     logic pipeline_stall;
     assign pipeline_stall = halt | scoreboard_stall;
     
@@ -195,9 +196,8 @@ module warp #(
                 instr_missed <= instr_in;
         end
     end
-    assign instr = (pipeline_stall_prev) ? instr_missed : instr_in; //Recently changed
-    //assign instr = (pipeline_stall_prev & !pipeline_stall) ? instr_missed : instr_in;
-    // --- Vector Lanes Instantiation ---
+    assign instr = (pipeline_stall_prev) ? instr_missed : instr_in; 
+    
     genvar i;
     generate
         for (i = 0; i < 16; i++) begin : lane_gen
@@ -228,7 +228,7 @@ module warp #(
     end
     
     // Insert bubble the cycle after a branch
-    assign insert_bubble = branch_taken & !halt; //cut the halt?
+    assign insert_bubble = branch_taken & !halt;
     assign instr_muxed = insert_bubble ? bubble_instr : instr;
     
     // PC Logic Register
@@ -426,7 +426,6 @@ module warp #(
             regwe_wb   <= regwe_exe2;
             mask_wb    <= mask_exe2;
             done_wb    <= done_exe2;
-            //if (done_wb) done <= 1; 
         end
     end
         

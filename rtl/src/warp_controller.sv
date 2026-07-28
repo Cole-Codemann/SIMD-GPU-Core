@@ -2,7 +2,7 @@ module warp_controller (
     input  logic        rst,
     input  logic        clk,
     input  logic [3:0]  alu_req,
-    output logic [3:0]  alu_access
+    (* MAX_FANOUT = 24 *) output logic [3:0]  alu_access
 );
     typedef enum {FULL_HALT, WARP0, WARP1, WARP2, WARP3} state_t;
     state_t state, next_state;
@@ -39,8 +39,9 @@ module warp_controller (
         endcase
     end
 
-    // ── Mealy Output: based on next_state ────────────────────
-    (* MAX_FANOUT = 24 *) logic [3:0] next_alu_access;
+    // ── Combination assignment of next access based on next state ────────────────────
+    // alu_access deals with massive routing which is why we register is alone, then cap fanout
+    logic [3:0] next_alu_access;
     
     always_comb begin
         case (next_state)

@@ -1,3 +1,5 @@
+`include "config.vh"
+
 module top (
     // Differential clock input (Genesys 2: 200 MHz LVDS pair)
     input  logic clk_p,
@@ -85,20 +87,20 @@ module top (
     //   gpio_0[3] (output): MicroBlaze chooses imem address space
     //   gpio_1 (input):  GPU_done back to MicroBlaze for polling
     // ─────────────────────────────────────────────────────────────────────────
-    (* mark_debug = "true" *) logic gpu_reset_from_mb;
-    (* mark_debug = "true" *) logic clock_reset_from_mb;
-    (* mark_debug = "true" *) logic dmem_addr_space;
-    (* mark_debug = "true" *) logic imem_addr_space;
+    `MEASURE logic gpu_reset_from_mb;
+    `MEASURE logic clock_reset_from_mb;
+    `DEBUG logic dmem_addr_space;
+    `DEBUG logic imem_addr_space;
     logic gpu_done_to_mb;
     
-    (* mark_debug = "true" *) logic gpu1_reset_from_mb;
-    (* mark_debug = "true" *) logic dmem1_addr_space;
-    (* mark_debug = "true" *) logic imem1_addr_space;
+    `DEBUG logic gpu1_reset_from_mb;
+    `DEBUG logic dmem1_addr_space;
+    `DEBUG logic imem1_addr_space;
     logic gpu1_done_to_mb;
     
-    (* mark_debug = "true" *) logic gpu2_reset_from_mb;
-    (* mark_debug = "true" *) logic dmem2_addr_space;
-    (* mark_debug = "true" *) logic imem2_addr_space;
+    `DEBUG logic gpu2_reset_from_mb;
+    `DEBUG logic dmem2_addr_space;
+    `DEBUG logic imem2_addr_space;
     logic gpu2_done_to_mb;
     
  
@@ -119,7 +121,7 @@ module top (
     logic [3:0][11:0]  imem_port_addr; //12 wide, into BRAM
     logic [3:0][15:0] gpu_imem_rdata;
  
-    (* mark_debug = "true" *) logic             gpu_done;
+    `MEASURE logic             gpu_done;
     
     // Second GPU core nets
     logic [10:0]      gpu1_dmem_addr;
@@ -143,9 +145,9 @@ module top (
     
     
     //Total Program Cycle Counting (Starts at first release of GPU)
-    (* mark_debug = "true" *) logic reset_prev;
-    (* mark_debug = "true" *) logic [31:0] from_init_duration_count; //Counted in this module, controlled by GPIO
-    (* mark_debug = "true" *) logic [31:0] program_duration_count; // Counted in GPU, controlled by reset to GPU
+    logic reset_prev;
+    `MEASURE logic [31:0] from_init_duration_count; //Counted in this module, controlled by GPIO
+    `MEASURE logic [31:0] program_duration_count; // Counted in GPU0, controlled by reset to GPU
     
     always_ff @(posedge sys_clk) begin
         reset_prev <= clock_reset_from_mb;       
